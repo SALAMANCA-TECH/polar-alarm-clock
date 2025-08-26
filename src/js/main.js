@@ -12,7 +12,7 @@ const toolsView = document.getElementById('toolsView');
 const goToSettingsBtn = document.getElementById('goToSettingsBtn');
 const goToCustomizeBtn = document.getElementById('goToCustomizeBtn');
 const goToToolsBtn = document.getElementById('goToToolsBtn');
-const goToAlarmsBtn = document.getElementById('goToAlarmsBtn');
+const goToAlarmsBtn = document.getElementById('goToAlarmsBtn'); // Added for new page
 const backToMainFromSettings = document.getElementById('backToMainFromSettings');
 const backToMainFromCustomize = document.getElementById('backToMainFromCustomize');
 const backToMainFromTools = document.getElementById('backToMainFromTools');
@@ -28,7 +28,7 @@ const timerHoursInput = document.getElementById('timerHours');
 const timerMinutesInput = document.getElementById('timerMinutes');
 const timerSecondsInput = document.getElementById('timerSeconds');
 const intervalToggle = document.getElementById('intervalToggle');
-// Alarm (Legacy - kept for UI)
+// Alarm (Legacy UI)
 const alarmHoursInput = document.getElementById('alarmHours');
 const alarmMinutesInput = document.getElementById('alarmMinutes');
 const alarmToggle = document.getElementById('alarmToggle');
@@ -297,7 +297,7 @@ const drawClock = (deltaTime) => {
     
     if (timerTotalSeconds > 0 && timerRadius > 0) {
         const timerProgress = Math.ceil((timerRemainingSeconds / timerTotalSeconds) * 100);
-        drawLabel({ radius: timerRadius, lineWidth: 30, text: `${timerProgress}%` });
+        drawLabel({ radius: timerRadius, lineWidth: 30, key: 'timer', text: `${timerProgress}%` });
     }
 
     // Draw separator lines
@@ -340,7 +340,43 @@ const drawClock = (deltaTime) => {
 };
 
 // --- STOPWATCH MODE ---
-// ... (Stopwatch code remains unchanged) ...
+const drawStopwatch = () => {
+    if (isStopwatchRunning) {
+        stopwatchElapsedTime = Date.now() - stopwatchStartTime;
+
+        if (isStopwatchIntervalEnabled && stopwatchIntervalTime > 0 && stopwatchElapsedTime >= nextStopwatchInterval) {
+            if (!isToneStarted) { Tone.start(); isToneStarted = true; }
+            alarmSynth.triggerAttackRelease("C5", "8n");
+            nextStopwatchInterval += stopwatchIntervalTime;
+        }
+    }
+
+    const time = new Date(stopwatchElapsedTime);
+    const milliseconds = time.getUTCMilliseconds();
+    const seconds = time.getUTCSeconds();
+    const minutes = time.getUTCMinutes();
+    const hours = time.getUTCHours();
+
+    const secondsEndAngle = baseStartAngle + ((seconds + milliseconds / 1000) / 60) * Math.PI * 2;
+    const minutesEndAngle = baseStartAngle + ((minutes + seconds / 60) / 60) * Math.PI * 2;
+    const hoursEndAngle = baseStartAngle + (((hours % 12) + minutes / 60) / 12) * Math.PI * 2;
+
+    const arcs = [
+        { key: 'hours', radius: hoursRadius, colors: settings.currentColors.hours, lineWidth: 45, endAngle: hoursEndAngle, text: hours.toString().padStart(2, '0') },
+        { key: 'minutes', radius: minutesRadius, colors: settings.currentColors.minutes, lineWidth: 30, endAngle: minutesEndAngle, text: minutes.toString().padStart(2, '0') },
+        { key: 'seconds', radius: secondsRadius, colors: settings.currentColors.seconds, lineWidth: 30, endAngle: secondsEndAngle, text: seconds.toString().padStart(2, '0') }
+    ];
+
+    arcs.forEach(arc => {
+        if (arc.radius > 0) {
+            drawArc(centerX, centerY, arc.radius, baseStartAngle, arc.endAngle, arc.colors.light, arc.colors.dark, arc.lineWidth);
+            drawLabel(arc);
+        }
+    });
+    
+    digitalTime.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    digitalDate.textContent = `.${milliseconds.toString().padStart(3, '0')}`;
+};
 
 // --- UI & CONTROLS ---
 
@@ -360,7 +396,191 @@ goToAlarmsBtn.addEventListener('click', () => {
     window.location.href = 'alarms.html';
 });
 
-// ... (Rest of UI controls like tabs, settings, etc., remain largely unchanged) ...
+// Tools Tabs
+function showToolsPanel(panelToShow, tabToActivate) {
+    [timerPanel, alarmPanel, stopwatchPanel].forEach(p => p.style.display = 'none');
+    panelToShow.style.display = 'flex';
+    handleActiveButton(tabToActivate, [timerTab, alarmTab, stopwatchTab]);
+    currentMode = (panelToShow === stopwatchPanel) ? 'stopwatch' : 'clock';
+    if (currentMode === 'stopwatch') resetStopwatch(); // Reset on tab switch
+}
+timerTab.addEventListener('click', () => showToolsPanel(timerPanel, timerTab));
+alarmTab.addEventListener('click', () => showToolsPanel(alarmPanel, alarmTab));
+stopwatchTab.addEventListener('click', () => showToolsPanel(stopwatchPanel, stopwatchTab));
+
+function handleActiveButton(clickedButton, buttonGroup) {
+    buttonGroup.forEach(button => button.classList.remove('active'));
+    clickedButton.classList.add('active');
+}
+
+// Settings Logic
+function setDisplayMode(mode) {
+    settings.labelDisplayMode = mode;
+    handleActiveButton(document.getElementById(`mode${mode.charAt(0).toUpperCase() + mode.slice(1)}`), [modeStandardBtn, modePercentageBtn, modeRemainderBtn]);
+    saveSettings();
+}
+modeStandardBtn.addEventListener('click', () => setDisplayMode('standard'));
+modePercentageBtn.addEventListener('click', () => setDisplayMode('percentage'));
+modeRemainderBtn.addEventListener('click', () => setDisplayMode('remainder'));
+
+format12Button.addEventListener('click', () => { settings.is24HourFormat = false; handleActiveButton(format12Button, [format12Button, format24Button]); amPmContainer.style.display = 'flex'; alarmHoursInput.max = "12"; alarmHoursInput.min = "1"; saveSettings(); });
+format24Button.addEventListener('click', () => { settings.is24HourFormat = true; handleActiveButton(format24Button, [format12Button, format24Button]); amPmContainer.style.display = 'none'; alarmHoursInput.max = "23"; alarmHoursInput.min = "0"; saveSettings(); });
+amButton.addEventListener('click', () => { settings.alarmAmPm = 'am'; handleActiveButton(amButton, [amButton, pmButton]); setAlarm(); });
+pmButton.addEventListener('click', () => { settings.alarmAmPm = 'pm'; handleActiveButton(pmButton, [amButton, pmButton]); setAlarm(); });
+
+function setColorPreset(preset) {
+    settings.colorPreset = preset;
+    settings.currentColors = colorPalettes[preset];
+    handleActiveButton(document.getElementById(`preset${preset.charAt(0).toUpperCase() + preset.slice(1)}`), [presetDefaultBtn, presetNeonBtn, presetPastelBtn, presetColorblindBtn]);
+    saveSettings();
+}
+presetDefaultBtn.addEventListener('click', () => setColorPreset('default'));
+presetNeonBtn.addEventListener('click', () => setColorPreset('neon'));
+presetPastelBtn.addEventListener('click', () => setColorPreset('pastel'));
+presetColorblindBtn.addEventListener('click', () => setColorPreset('colorblind'));
+
+gradientToggle.addEventListener('change', (e) => { settings.useGradient = e.target.checked; saveSettings(); });
+dateLinesToggle.addEventListener('change', (e) => { settings.showDateLines = e.target.checked; saveSettings(); });
+timeLinesToggle.addEventListener('change', (e) => { settings.showTimeLines = e.target.checked; saveSettings(); });
+
+// Timer Logic
+intervalToggle.addEventListener('change', (e) => isIntervalMode = e.target.checked);
+function startTimer() {
+    if (timerInterval) return;
+    if (!isToneStarted) { Tone.start(); isToneStarted = true; }
+    if (!isTimerPaused) {
+        timerTotalSeconds = (parseInt(timerHoursInput.value) || 0) * 3600 + (parseInt(timerMinutesInput.value) || 0) * 60 + (parseInt(timerSecondsInput.value) || 0);
+        timerRemainingSeconds = timerTotalSeconds;
+    }
+    if (timerRemainingSeconds <= 0) { resetTimer(); return; };
+    isTimerPaused = false;
+    timerInterval = setInterval(tick, 1000);
+}
+function pauseTimer() { clearInterval(timerInterval); timerInterval = null; isTimerPaused = true; }
+function resetTimer() {
+    clearInterval(timerInterval);
+    timerInterval = null;
+    timerTotalSeconds = 0;
+    timerRemainingSeconds = 0;
+    isTimerPaused = false;
+    intervalToggle.checked = false;
+    isIntervalMode = false;
+    timerHoursInput.value = "0"; timerMinutesInput.value = "0"; timerSecondsInput.value = "0";
+}
+function tick() {
+    timerRemainingSeconds--;
+    const h = Math.floor(timerRemainingSeconds / 3600), m = Math.floor((timerRemainingSeconds % 3600) / 60), s = timerRemainingSeconds % 60;
+    timerHoursInput.value = h.toString().padStart(2, '0');
+    timerMinutesInput.value = m.toString().padStart(2, '0');
+    timerSecondsInput.value = s.toString().padStart(2, '0');
+    if (timerRemainingSeconds <= 0) {
+        alarmSynth.triggerAttackRelease("C5", "8n");
+        if (isIntervalMode) { timerRemainingSeconds = timerTotalSeconds; } 
+        else { resetTimer(); }
+    }
+}
+document.getElementById('startTimer').addEventListener('click', startTimer);
+document.getElementById('pauseTimer').addEventListener('click', pauseTimer);
+document.getElementById('resetTimer').addEventListener('click', resetTimer);
+
+// Alarm Logic (Legacy)
+function setAlarm() {
+    // This function is now mostly for the simple UI, the core logic is in checkAdvancedAlarms
+}
+alarmToggle.addEventListener('change', setAlarm);
+alarmHoursInput.addEventListener('input', setAlarm);
+alarmMinutesInput.addEventListener('input', setAlarm);
+
+// Stopwatch Logic
+function startStopwatch() {
+    if (isStopwatchRunning) return;
+    isStopwatchRunning = true;
+    stopwatchStartTime = Date.now() - stopwatchElapsedTime;
+     if (isStopwatchIntervalEnabled && stopwatchIntervalTime > 0) {
+        const intervalsPassed = Math.floor(stopwatchElapsedTime / stopwatchIntervalTime);
+        nextStopwatchInterval = (intervalsPassed + 1) * stopwatchIntervalTime;
+    }
+}
+function stopStopwatch() {
+    isStopwatchRunning = false;
+}
+function resetStopwatch() {
+    isStopwatchRunning = false;
+    stopwatchElapsedTime = 0;
+    lapTimes = [];
+    updateLapDisplay();
+    nextStopwatchInterval = stopwatchIntervalTime;
+}
+function lapStopwatch() {
+    if (!isStopwatchRunning) return;
+    lapTimes.push(stopwatchElapsedTime);
+    updateLapDisplay();
+}
+function formatTime(ms) {
+    const time = new Date(ms);
+    const minutes = time.getUTCMinutes().toString().padStart(2, '0');
+    const seconds = time.getUTCSeconds().toString().padStart(2, '0');
+    const milliseconds = time.getUTCMilliseconds().toString().padStart(3, '0');
+    return `${minutes}:${seconds}.${milliseconds}`;
+}
+function updateLapDisplay() {
+    lapTimesContainer.innerHTML = '';
+    lapTimes.forEach((lap, index) => {
+        const lapElement = document.createElement('div');
+        lapElement.classList.add('lap-item');
+        lapElement.innerHTML = `<span class="lap-number">Lap ${index + 1}</span><span>${formatTime(lap)}</span>`;
+        lapTimesContainer.prepend(lapElement);
+    });
+}
+startStopwatchBtn.addEventListener('click', startStopwatch);
+stopStopwatchBtn.addEventListener('click', stopStopwatch);
+resetStopwatchBtn.addEventListener('click', resetStopwatch);
+lapStopwatchBtn.addEventListener('click', lapStopwatch);
+
+// Stopwatch Interval Logic
+stopwatchIntervalToggle.addEventListener('change', (e) => {
+    isStopwatchIntervalEnabled = e.target.checked;
+    stopwatchIntervalInputs.style.display = isStopwatchIntervalEnabled ? 'flex' : 'none';
+    if (isStopwatchIntervalEnabled) {
+        setStopwatchInterval();
+    }
+});
+
+function setStopwatchInterval() {
+    const minutes = parseInt(stopwatchIntervalMinutesInput.value) || 0;
+    const seconds = parseInt(stopwatchIntervalSecondsInput.value) || 0;
+    stopwatchIntervalTime = (minutes * 60 + seconds) * 1000;
+    if (isStopwatchRunning) {
+        const intervalsPassed = Math.floor(stopwatchElapsedTime / stopwatchIntervalTime);
+        nextStopwatchInterval = (intervalsPassed + 1) * stopwatchIntervalTime;
+    } else {
+         nextStopwatchInterval = stopwatchIntervalTime;
+    }
+}
+stopwatchIntervalMinutesInput.addEventListener('input', setStopwatchInterval);
+stopwatchIntervalSecondsInput.addEventListener('input', setStopwatchInterval);
+
+// --- SETTINGS PERSISTENCE ---
+function saveSettings() {
+    localStorage.setItem('polarClockSettings', JSON.stringify(settings));
+}
+
+function loadSettings() {
+    const savedSettings = localStorage.getItem('polarClockSettings');
+    const defaultSettings = {
+        is24HourFormat: false, labelDisplayMode: 'standard',
+        showDateLines: true, showTimeLines: true, useGradient: true, colorPreset: 'default'
+    };
+    settings = savedSettings ? { ...defaultSettings, ...JSON.parse(savedSettings) } : defaultSettings;
+    
+    // Apply loaded settings to the UI
+    setDisplayMode(settings.labelDisplayMode);
+    if (settings.is24HourFormat) format24Button.click(); else format12Button.click();
+    setColorPreset(settings.colorPreset || 'default');
+    gradientToggle.checked = settings.useGradient;
+    dateLinesToggle.checked = settings.showDateLines;
+    timeLinesToggle.checked = settings.showTimeLines;
+}
 
 // --- NEW ADVANCED ALARM LOGIC ---
 function loadAdvancedAlarms() {
@@ -372,13 +592,6 @@ function loadAdvancedAlarms() {
     if (storedTrackedId) {
         trackedAlarmId = JSON.parse(storedTrackedId);
     }
-}
-
-function convertTo24Hour(hour, ampm) {
-    hour = parseInt(hour);
-    if (ampm === 'PM' && hour !== 12) hour += 12;
-    if (ampm === 'AM' && hour === 12) hour = 0;
-    return hour;
 }
 
 function checkAdvancedAlarms(now) {
@@ -403,10 +616,8 @@ function checkAdvancedAlarms(now) {
             if (!isToneStarted) { Tone.start(); isToneStarted = true; }
             alarmSynth.triggerAttackRelease("C5", "8n");
             
-            // If it's a temporary alarm, disable it after it triggers
             if (alarm.isTemporary) {
                 alarm.enabled = false;
-                // We need to save this change back to localStorage
                 localStorage.setItem('polarAlarms', JSON.stringify(advancedAlarms));
             }
         }
@@ -424,7 +635,6 @@ function drawTrackedAlarmTimer(now) {
 
     let nextAlarmTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), alarmHour24, alarmMinute, 0, 0);
     
-    // Find the next occurrence
     if (trackedAlarm.days.length > 0) {
         let currentDay = now.getDay();
         let daysUntilNext = Infinity;
@@ -440,52 +650,35 @@ function drawTrackedAlarmTimer(now) {
         }
         nextAlarmTime.setDate(now.getDate() + daysUntilNext);
     } else {
-        // For "once" alarms
         if (nextAlarmTime < now) {
-            nextAlarmTime.setDate(nextAlarmTime.getDate() + 1); // Assume it's for the next day
+            nextAlarmTime.setDate(nextAlarmTime.getDate() + 1);
         }
     }
 
     const totalSecondsToAlarm = (nextAlarmTime - now) / 1000;
-    
-    // For simplicity, let's cap the timer display at 24 hours
-    const totalDuration = Math.min(totalSecondsToAlarm, 24 * 3600);
-    const progress = totalSecondsToAlarm / totalDuration;
+    const totalDuration = 24 * 3600; // Always a 24-hour ring
+    const progress = Math.max(0, (totalDuration - totalSecondsToAlarm) / totalDuration);
 
-    const timerStartAngle = baseStartAngle + (1 - progress) * Math.PI * 2;
-    drawArc(centerX, centerY, trackedAlarmRadius, timerStartAngle, baseStartAngle + Math.PI * 2, '#80DEEA', '#006064', 30);
+    const timerStartAngle = baseStartAngle;
+    const timerEndAngle = baseStartAngle + progress * Math.PI * 2;
+    drawArc(centerX, centerY, trackedAlarmRadius, timerStartAngle, timerEndAngle, '#80DEEA', '#006064', 30);
     
     const hoursLeft = Math.floor(totalSecondsToAlarm / 3600);
     const minutesLeft = Math.floor((totalSecondsToAlarm % 3600) / 60);
-    drawLabel({ radius: trackedAlarmRadius, lineWidth: 30, text: `${hoursLeft}h ${minutesLeft}m` });
-}
-
-
-// --- SETTINGS PERSISTENCE ---
-function saveSettings() {
-    localStorage.setItem('polarClockSettings', JSON.stringify(settings));
-}
-
-function loadSettings() {
-    const savedSettings = localStorage.getItem('polarClockSettings');
-    const defaultSettings = {
-        is24HourFormat: false, labelDisplayMode: 'standard',
-        showDateLines: true, showTimeLines: true, useGradient: true, colorPreset: 'default'
-    };
-    settings = savedSettings ? { ...defaultSettings, ...JSON.parse(savedSettings) } : defaultSettings;
-    
-    // Apply loaded settings to the UI
-    setDisplayMode(settings.labelDisplayMode);
-    if (settings.is24HourFormat) format24Button.click(); else format12Button.click();
-    setColorPreset(settings.colorPreset || 'default');
-    gradientToggle.checked = settings.useGradient;
-    dateLinesToggle.checked = settings.showDateLines;
-    timeLinesToggle.checked = settings.showTimeLines;
+    drawLabel({ radius: trackedAlarmRadius, lineWidth: 30, key: 'tracked', text: `${hoursLeft}h ${minutesLeft}m` });
 }
 
 // --- INITIALIZATION ---
 window.addEventListener('resize', resizeCanvas);
 loadSettings();
 loadAdvancedAlarms(); // --- NEW: Load advanced alarms on start ---
-resizeCanvas();
-animate(0);
+requestAnimationFrame(startClock); // Start the clock safely
+function startClock() {
+    resizeCanvas();
+    // Failsafe: only start the animation if the canvas has a measurable size.
+    if (canvas.width > 0 && canvas.height > 0) {
+        animate(0);
+    } else {
+        // If the canvas is still size 0, wait for the next frame and try again.
+        requestAnimationFrame(startClock);
+    }
