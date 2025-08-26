@@ -583,6 +583,13 @@ function loadSettings() {
 }
 
 // --- NEW ADVANCED ALARM LOGIC ---
+function convertTo24Hour(hour, ampm) {
+    hour = parseInt(hour);
+    if (ampm === 'PM' && hour < 12) hour += 12;
+    if (ampm === 'AM' && hour === 12) hour = 0;
+    return hour;
+}
+
 function loadAdvancedAlarms() {
     const storedAlarms = localStorage.getItem('polarAlarms');
     const storedTrackedId = localStorage.getItem('polarTrackedAlarm');
@@ -601,7 +608,7 @@ function checkAdvancedAlarms(now) {
     }
     lastMinuteChecked = currentMinute;
 
-    const currentDay = now.getDay();
+    const currentDay = now.getDay(); // 0 for Sunday, 1 for Monday, etc.
     const currentHour = now.getHours();
 
     advancedAlarms.forEach(alarm => {
@@ -618,6 +625,7 @@ function checkAdvancedAlarms(now) {
             
             if (alarm.isTemporary) {
                 alarm.enabled = false;
+                // Save the updated alarms state back to localStorage
                 localStorage.setItem('polarAlarms', JSON.stringify(advancedAlarms));
             }
         }
@@ -639,7 +647,10 @@ function drawTrackedAlarmTimer(now) {
         let currentDay = now.getDay();
         let daysUntilNext = Infinity;
         
-        for (const day of trackedAlarm.days) {
+        // Sort days to handle week wrap-around correctly, starting from today
+        const sortedDays = trackedAlarm.days.sort((a, b) => a - b);
+
+        for (const day of sortedDays) {
             let diff = day - currentDay;
             if (diff < 0 || (diff === 0 && nextAlarmTime < now)) {
                 diff += 7;
@@ -648,15 +659,22 @@ function drawTrackedAlarmTimer(now) {
                 daysUntilNext = diff;
             }
         }
-        nextAlarmTime.setDate(now.getDate() + daysUntilNext);
-    } else {
+        
+        if (daysUntilNext !== Infinity) {
+             nextAlarmTime.setDate(now.getDate() + daysUntilNext);
+        }
+       
+    } else { // One-time alarm logic
         if (nextAlarmTime < now) {
             nextAlarmTime.setDate(nextAlarmTime.getDate() + 1);
         }
     }
 
     const totalSecondsToAlarm = (nextAlarmTime - now) / 1000;
-    const totalDuration = 24 * 3600; // Always a 24-hour ring
+    
+    // Use a 24-hour cycle (86400 seconds) as the total duration for the visual ring
+    // Or, if the alarm is further than 24h away, use the actual total duration
+    const totalDuration = Math.max(24 * 3600, (nextAlarmTime - new Date(nextAlarmTime).setHours(nextAlarmTime.getHours() - 24, nextAlarmTime.getMinutes(), 0, 0)) / 1000);
     const progress = Math.max(0, (totalDuration - totalSecondsToAlarm) / totalDuration);
 
     const timerStartAngle = baseStartAngle;
@@ -668,11 +686,7 @@ function drawTrackedAlarmTimer(now) {
     drawLabel({ radius: trackedAlarmRadius, lineWidth: 30, key: 'tracked', text: `${hoursLeft}h ${minutesLeft}m` });
 }
 
-// --- INITIALIZATION ---
-window.addEventListener('resize', resizeCanvas);
-loadSettings();
-loadAdvancedAlarms(); // --- NEW: Load advanced alarms on start ---
-requestAnimationFrame(startClock); // Start the clock safely
+
 function startClock() {
     resizeCanvas();
     // Failsafe: only start the animation if the canvas has a measurable size.
@@ -682,3 +696,10 @@ function startClock() {
         // If the canvas is still size 0, wait for the next frame and try again.
         requestAnimationFrame(startClock);
     }
+}
+
+// --- INITIALIZATION ---
+window.addEventListener('resize', resizeCanvas);
+loadSettings();
+loadAdvancedAlarms(); // --- NEW: Load advanced alarms on start ---
+requestAnimationFrame(startClock); // Start the clock safely
