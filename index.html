@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Polar Clock Pro</title>
-    <!-- Link to the external CSS file -->
+    <!-- Correct path to your CSS file -->
     <link rel="stylesheet" href="src/css/style.css">
     <!-- Tone.js for audio synthesis -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
@@ -25,12 +25,14 @@
         <div id="mainView" class="ui-content">
             <div class="main-nav-buttons">
                 <button id="goToToolsBtn" class="main-nav-button">Tools</button>
+                <!-- New Button Added Here -->
+                <button id="goToAlarmsBtn" class="main-nav-button">Manage Alarms</button>
                 <button id="goToCustomizeBtn" class="main-nav-button">Customize</button>
                 <button id="goToSettingsBtn" class="main-nav-button">Settings</button>
             </div>
         </div>
 
-        <!-- Tools View -->
+        <!-- All other views (Tools, Settings, Customize) remain unchanged -->
         <div id="toolsView" class="ui-content" style="display: none;">
             <div class="view-header">
                 <button id="backToMainFromTools" class="back-button">Back</button>
@@ -40,7 +42,6 @@
                 <button id="alarmTab" class="tab-button">Alarm</button>
                 <button id="stopwatchTab" class="tab-button">Stopwatch</button>
             </div>
-            <!-- Timer Panel -->
             <div id="timerPanel" class="ui-panel">
                 <div class="time-inputs">
                     <div class="input-group">
@@ -71,7 +72,6 @@
                     </label>
                 </div>
             </div>
-            <!-- Alarm Panel -->
             <div id="alarmPanel" class="ui-panel" style="display: none;">
                 <div class="time-inputs">
                     <div class="input-group">
@@ -98,7 +98,6 @@
                     </div>
                 </div>
             </div>
-            <!-- Stopwatch Panel -->
             <div id="stopwatchPanel" class="ui-panel" style="display: none;">
                 <div class="control-buttons">
                     <button id="startStopwatch">Start</button>
@@ -128,7 +127,6 @@
             </div>
         </div>
         
-        <!-- Settings View -->
         <div id="settingsView" class="ui-content" style="display: none;">
             <div class="view-header">
                 <button id="backToMainFromSettings" class="back-button">Back</button>
@@ -150,7 +148,6 @@
             </div>
         </div>
 
-        <!-- Customize View -->
         <div id="customizeView" class="ui-content" style="display: none;">
             <div class="view-header">
                 <button id="backToMainFromCustomize" class="back-button">Back</button>
@@ -191,7 +188,7 @@
         </div>
     </div>
 
-    <!-- Link to the external JavaScript file -->
+    <!-- Correct path to your JavaScript file -->
     <script src="src/js/main.js"></script>
 </body>
 </html>

@@ -12,6 +12,7 @@ const toolsView = document.getElementById('toolsView');
 const goToSettingsBtn = document.getElementById('goToSettingsBtn');
 const goToCustomizeBtn = document.getElementById('goToCustomizeBtn');
 const goToToolsBtn = document.getElementById('goToToolsBtn');
+const goToAlarmsBtn = document.getElementById('goToAlarmsBtn');
 const backToMainFromSettings = document.getElementById('backToMainFromSettings');
 const backToMainFromCustomize = document.getElementById('backToMainFromCustomize');
 const backToMainFromTools = document.getElementById('backToMainFromTools');
@@ -394,6 +395,9 @@ goToToolsBtn.addEventListener('click', () => showView(toolsView));
 backToMainFromSettings.addEventListener('click', () => showView(mainView));
 backToMainFromCustomize.addEventListener('click', () => showView(mainView));
 backToMainFromTools.addEventListener('click', () => showView(mainView));
+goToAlarmsBtn.addEventListener('click', () => {
+    window.location.href = 'alarms.html'; // This will navigate to the new page
+});
 
 // Tools Tabs
 function showToolsPanel(panelToShow, tabToActivate) {
