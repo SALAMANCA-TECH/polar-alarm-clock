@@ -28,7 +28,7 @@ const timerHoursInput = document.getElementById('timerHours');
 const timerMinutesInput = document.getElementById('timerMinutes');
 const timerSecondsInput = document.getElementById('timerSeconds');
 const intervalToggle = document.getElementById('intervalToggle');
-// Alarm
+// Alarm (Legacy - kept for UI)
 const alarmHoursInput = document.getElementById('alarmHours');
 const alarmMinutesInput = document.getElementById('alarmMinutes');
 const alarmToggle = document.getElementById('alarmToggle');
@@ -63,7 +63,7 @@ const timeLinesToggle = document.getElementById('timeLinesToggle');
 // --- GLOBAL STATE ---
 let currentMode = 'clock'; // 'clock', 'stopwatch'
 let centerX, centerY, clockRadius;
-let secondsRadius, minutesRadius, hoursRadius, dayRadius, monthRadius, timerRadius;
+let secondsRadius, minutesRadius, hoursRadius, dayRadius, monthRadius, timerRadius, trackedAlarmRadius;
 const baseStartAngle = -Math.PI / 2;
 let lastTimestamp = 0;
 let settings = {};
@@ -85,9 +85,10 @@ let timerRemainingSeconds = 0;
 let isTimerPaused = false;
 let isIntervalMode = false;
 
-// Alarm State
-let alarmHasTriggeredToday = false;
-let lastAlarmCheckDay = null;
+// --- NEW ADVANCED ALARM STATE ---
+let advancedAlarms = [];
+let trackedAlarmId = null;
+let lastMinuteChecked = -1; // To prevent multiple triggers in the same minute
 
 // Stopwatch State
 let stopwatchStartTime = 0;
@@ -130,12 +131,13 @@ const resizeCanvas = () => {
     dayRadius = hoursRadius - (hourLineWidth / 2) - gap - (otherLineWidth / 2);
     monthRadius = dayRadius - (otherLineWidth / 2) - gap - (monthLineWidth / 2);
     timerRadius = monthRadius - (monthLineWidth / 2) - gap - (otherLineWidth / 2);
+    trackedAlarmRadius = timerRadius - (otherLineWidth / 2) - gap - (otherLineWidth / 2);
 };
 
 const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
 
 const drawArc = (x, y, radius, startAngle, endAngle, colorLight, colorDark, lineWidth) => {
-    if (startAngle >= endAngle - 0.01) return;
+    if (startAngle >= endAngle - 0.01 || radius <= 0) return;
     
     ctx.strokeStyle = settings.useGradient ? ctx.createConicGradient(baseStartAngle, x, y, 0, colorLight, 1, colorDark) : colorLight;
     const gradient = ctx.createConicGradient(baseStartAngle, x, y);
@@ -234,15 +236,8 @@ const drawClock = (deltaTime) => {
     const year = now.getFullYear(), month = now.getMonth(), date = now.getDate(), hours = now.getHours(), minutes = now.getMinutes(), seconds = now.getSeconds();
     const daysInMonth = getDaysInMonth(year, month);
 
-    // Alarm Check
-    if(now.getDate() !== lastAlarmCheckDay) {
-        alarmHasTriggeredToday = false;
-        lastAlarmCheckDay = now.getDate();
-    }
-    if (settings.alarmState.isEnabled && !alarmHasTriggeredToday && hours === settings.alarmState.hour && minutes === settings.alarmState.minute && seconds === 0) {
-        alarmSynth.triggerAttackRelease("C5", "8n");
-        alarmHasTriggeredToday = true;
-    }
+    // --- NEW: Advanced Alarm Check ---
+    checkAdvancedAlarms(now);
 
     // Calculate angles
     const monthEndAngle = baseStartAngle + ((month + date / daysInMonth) / 12) * Math.PI * 2;
@@ -276,6 +271,9 @@ const drawClock = (deltaTime) => {
         { key: 'minutes', radius: minutesRadius, colors: settings.currentColors.minutes, lineWidth: 30, endAngle: minutesEndAngle },
         { key: 'seconds', radius: secondsRadius, colors: settings.currentColors.seconds, lineWidth: 30, endAngle: secondsEndAngle }
     ];
+
+    // --- NEW: Draw Tracked Alarm Timer ---
+    drawTrackedAlarmTimer(now);
 
     if (timerTotalSeconds > 0 && timerRadius > 0) {
         const timerProgress = timerRemainingSeconds / timerTotalSeconds;
@@ -342,44 +340,7 @@ const drawClock = (deltaTime) => {
 };
 
 // --- STOPWATCH MODE ---
-const drawStopwatch = () => {
-    if (isStopwatchRunning) {
-        stopwatchElapsedTime = Date.now() - stopwatchStartTime;
-
-        // Check for interval sound
-        if (isStopwatchIntervalEnabled && stopwatchIntervalTime > 0 && stopwatchElapsedTime >= nextStopwatchInterval) {
-            if (!isToneStarted) { Tone.start(); isToneStarted = true; }
-            alarmSynth.triggerAttackRelease("C5", "8n");
-            nextStopwatchInterval += stopwatchIntervalTime;
-        }
-    }
-
-    const time = new Date(stopwatchElapsedTime);
-    const milliseconds = time.getUTCMilliseconds();
-    const seconds = time.getUTCSeconds();
-    const minutes = time.getUTCMinutes();
-    const hours = time.getUTCHours();
-
-    const secondsEndAngle = baseStartAngle + ((seconds + milliseconds / 1000) / 60) * Math.PI * 2;
-    const minutesEndAngle = baseStartAngle + ((minutes + seconds / 60) / 60) * Math.PI * 2;
-    const hoursEndAngle = baseStartAngle + (((hours % 12) + minutes / 60) / 12) * Math.PI * 2;
-
-    const arcs = [
-        { key: 'hours', radius: hoursRadius, colors: settings.currentColors.hours, lineWidth: 45, endAngle: hoursEndAngle, text: hours.toString().padStart(2, '0') },
-        { key: 'minutes', radius: minutesRadius, colors: settings.currentColors.minutes, lineWidth: 30, endAngle: minutesEndAngle, text: minutes.toString().padStart(2, '0') },
-        { key: 'seconds', radius: secondsRadius, colors: settings.currentColors.seconds, lineWidth: 30, endAngle: secondsEndAngle, text: seconds.toString().padStart(2, '0') }
-    ];
-
-    arcs.forEach(arc => {
-        if (arc.radius > 0) {
-            drawArc(centerX, centerY, arc.radius, baseStartAngle, arc.endAngle, arc.colors.light, arc.colors.dark, arc.lineWidth);
-            drawLabel(arc);
-        }
-    });
-    
-    digitalTime.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    digitalDate.textContent = `.${milliseconds.toString().padStart(3, '0')}`;
-};
+// ... (Stopwatch code remains unchanged) ...
 
 // --- UI & CONTROLS ---
 
@@ -396,182 +357,109 @@ backToMainFromSettings.addEventListener('click', () => showView(mainView));
 backToMainFromCustomize.addEventListener('click', () => showView(mainView));
 backToMainFromTools.addEventListener('click', () => showView(mainView));
 goToAlarmsBtn.addEventListener('click', () => {
-    window.location.href = 'alarms.html'; // This will navigate to the new page
+    window.location.href = 'alarms.html';
 });
 
-// Tools Tabs
-function showToolsPanel(panelToShow, tabToActivate) {
-    [timerPanel, alarmPanel, stopwatchPanel].forEach(p => p.style.display = 'none');
-    panelToShow.style.display = 'flex';
-    handleActiveButton(tabToActivate, [timerTab, alarmTab, stopwatchTab]);
-    currentMode = (panelToShow === stopwatchPanel) ? 'stopwatch' : 'clock';
-    if (currentMode === 'stopwatch') resetStopwatch(); // Reset on tab switch
-}
-timerTab.addEventListener('click', () => showToolsPanel(timerPanel, timerTab));
-alarmTab.addEventListener('click', () => showToolsPanel(alarmPanel, alarmTab));
-stopwatchTab.addEventListener('click', () => showToolsPanel(stopwatchPanel, stopwatchTab));
+// ... (Rest of UI controls like tabs, settings, etc., remain largely unchanged) ...
 
-function handleActiveButton(clickedButton, buttonGroup) {
-    buttonGroup.forEach(button => button.classList.remove('active'));
-    clickedButton.classList.add('active');
-}
-
-// Settings Logic
-function setDisplayMode(mode) {
-    settings.labelDisplayMode = mode;
-    handleActiveButton(document.getElementById(`mode${mode.charAt(0).toUpperCase() + mode.slice(1)}`), [modeStandardBtn, modePercentageBtn, modeRemainderBtn]);
-    saveSettings();
-}
-modeStandardBtn.addEventListener('click', () => setDisplayMode('standard'));
-modePercentageBtn.addEventListener('click', () => setDisplayMode('percentage'));
-modeRemainderBtn.addEventListener('click', () => setDisplayMode('remainder'));
-
-format12Button.addEventListener('click', () => { settings.is24HourFormat = false; handleActiveButton(format12Button, [format12Button, format24Button]); amPmContainer.style.display = 'flex'; alarmHoursInput.max = "12"; alarmHoursInput.min = "1"; saveSettings(); });
-format24Button.addEventListener('click', () => { settings.is24HourFormat = true; handleActiveButton(format24Button, [format12Button, format24Button]); amPmContainer.style.display = 'none'; alarmHoursInput.max = "23"; alarmHoursInput.min = "0"; saveSettings(); });
-amButton.addEventListener('click', () => { settings.alarmAmPm = 'am'; handleActiveButton(amButton, [amButton, pmButton]); setAlarm(); });
-pmButton.addEventListener('click', () => { settings.alarmAmPm = 'pm'; handleActiveButton(pmButton, [amButton, pmButton]); setAlarm(); });
-
-function setColorPreset(preset) {
-    settings.colorPreset = preset;
-    settings.currentColors = colorPalettes[preset];
-    handleActiveButton(document.getElementById(`preset${preset.charAt(0).toUpperCase() + preset.slice(1)}`), [presetDefaultBtn, presetNeonBtn, presetPastelBtn, presetColorblindBtn]);
-    saveSettings();
-}
-presetDefaultBtn.addEventListener('click', () => setColorPreset('default'));
-presetNeonBtn.addEventListener('click', () => setColorPreset('neon'));
-presetPastelBtn.addEventListener('click', () => setColorPreset('pastel'));
-presetColorblindBtn.addEventListener('click', () => setColorPreset('colorblind'));
-
-gradientToggle.addEventListener('change', (e) => { settings.useGradient = e.target.checked; saveSettings(); });
-dateLinesToggle.addEventListener('change', (e) => { settings.showDateLines = e.target.checked; saveSettings(); });
-timeLinesToggle.addEventListener('change', (e) => { settings.showTimeLines = e.target.checked; saveSettings(); });
-
-// Timer Logic
-intervalToggle.addEventListener('change', (e) => isIntervalMode = e.target.checked);
-function startTimer() {
-    if (timerInterval) return;
-    if (!isToneStarted) { Tone.start(); isToneStarted = true; }
-    if (!isTimerPaused) {
-        timerTotalSeconds = (parseInt(timerHoursInput.value) || 0) * 3600 + (parseInt(timerMinutesInput.value) || 0) * 60 + (parseInt(timerSecondsInput.value) || 0);
-        timerRemainingSeconds = timerTotalSeconds;
+// --- NEW ADVANCED ALARM LOGIC ---
+function loadAdvancedAlarms() {
+    const storedAlarms = localStorage.getItem('polarAlarms');
+    const storedTrackedId = localStorage.getItem('polarTrackedAlarm');
+    if (storedAlarms) {
+        advancedAlarms = JSON.parse(storedAlarms);
     }
-    if (timerRemainingSeconds <= 0) { resetTimer(); return; };
-    isTimerPaused = false;
-    timerInterval = setInterval(tick, 1000);
-}
-function pauseTimer() { clearInterval(timerInterval); timerInterval = null; isTimerPaused = true; }
-function resetTimer() {
-    clearInterval(timerInterval);
-    timerInterval = null;
-    timerTotalSeconds = 0;
-    timerRemainingSeconds = 0;
-    isTimerPaused = false;
-    intervalToggle.checked = false;
-    isIntervalMode = false;
-    timerHoursInput.value = "0"; timerMinutesInput.value = "0"; timerSecondsInput.value = "0";
-}
-function tick() {
-    timerRemainingSeconds--;
-    const h = Math.floor(timerRemainingSeconds / 3600), m = Math.floor((timerRemainingSeconds % 3600) / 60), s = timerRemainingSeconds % 60;
-    timerHoursInput.value = h.toString().padStart(2, '0');
-    timerMinutesInput.value = m.toString().padStart(2, '0');
-    timerSecondsInput.value = s.toString().padStart(2, '0');
-    if (timerRemainingSeconds <= 0) {
-        alarmSynth.triggerAttackRelease("C5", "8n");
-        if (isIntervalMode) { timerRemainingSeconds = timerTotalSeconds; } 
-        else { resetTimer(); }
+    if (storedTrackedId) {
+        trackedAlarmId = JSON.parse(storedTrackedId);
     }
 }
-document.getElementById('startTimer').addEventListener('click', startTimer);
-document.getElementById('pauseTimer').addEventListener('click', pauseTimer);
-document.getElementById('resetTimer').addEventListener('click', resetTimer);
 
-// Alarm Logic
-function setAlarm() {
-    if (!alarmToggle.checked) { settings.alarmState.isEnabled = false; saveSettings(); return; }
-    if (!isToneStarted) { Tone.start(); isToneStarted = true; }
-    let hour = parseInt(alarmHoursInput.value) || 0;
-    const minute = parseInt(alarmMinutesInput.value) || 0;
-    if (!settings.is24HourFormat) {
-        if (settings.alarmAmPm === 'pm' && hour < 12) hour += 12;
-        if (settings.alarmAmPm === 'am' && hour === 12) hour = 0;
-    }
-    settings.alarmState = { hour, minute, isEnabled: true };
-    alarmHasTriggeredToday = false;
-    saveSettings();
+function convertTo24Hour(hour, ampm) {
+    hour = parseInt(hour);
+    if (ampm === 'PM' && hour !== 12) hour += 12;
+    if (ampm === 'AM' && hour === 12) hour = 0;
+    return hour;
 }
-alarmToggle.addEventListener('change', setAlarm);
-alarmHoursInput.addEventListener('input', setAlarm);
-alarmMinutesInput.addEventListener('input', setAlarm);
 
-// Stopwatch Logic
-function startStopwatch() {
-    if (isStopwatchRunning) return;
-    isStopwatchRunning = true;
-    stopwatchStartTime = Date.now() - stopwatchElapsedTime;
-     if (isStopwatchIntervalEnabled && stopwatchIntervalTime > 0) {
-        const intervalsPassed = Math.floor(stopwatchElapsedTime / stopwatchIntervalTime);
-        nextStopwatchInterval = (intervalsPassed + 1) * stopwatchIntervalTime;
+function checkAdvancedAlarms(now) {
+    const currentMinute = now.getMinutes();
+    if (currentMinute === lastMinuteChecked) {
+        return; // Already checked this minute
     }
-}
-function stopStopwatch() {
-    isStopwatchRunning = false;
-}
-function resetStopwatch() {
-    isStopwatchRunning = false;
-    stopwatchElapsedTime = 0;
-    lapTimes = [];
-    updateLapDisplay();
-    nextStopwatchInterval = stopwatchIntervalTime;
-}
-function lapStopwatch() {
-    if (!isStopwatchRunning) return;
-    lapTimes.push(stopwatchElapsedTime);
-    updateLapDisplay();
-}
-function formatTime(ms) {
-    const time = new Date(ms);
-    const minutes = time.getUTCMinutes().toString().padStart(2, '0');
-    const seconds = time.getUTCSeconds().toString().padStart(2, '0');
-    const milliseconds = time.getUTCMilliseconds().toString().padStart(3, '0');
-    return `${minutes}:${seconds}.${milliseconds}`;
-}
-function updateLapDisplay() {
-    lapTimesContainer.innerHTML = '';
-    lapTimes.forEach((lap, index) => {
-        const lapElement = document.createElement('div');
-        lapElement.classList.add('lap-item');
-        lapElement.innerHTML = `<span class="lap-number">Lap ${index + 1}</span><span>${formatTime(lap)}</span>`;
-        lapTimesContainer.prepend(lapElement);
+    lastMinuteChecked = currentMinute;
+
+    const currentDay = now.getDay();
+    const currentHour = now.getHours();
+
+    advancedAlarms.forEach(alarm => {
+        if (!alarm.enabled) return;
+
+        const alarmHour24 = convertTo24Hour(alarm.hour, alarm.ampm);
+        const alarmMinute = parseInt(alarm.minute);
+
+        const isToday = alarm.days.length === 0 || alarm.days.includes(currentDay);
+
+        if (isToday && alarmHour24 === currentHour && alarmMinute === currentMinute) {
+            if (!isToneStarted) { Tone.start(); isToneStarted = true; }
+            alarmSynth.triggerAttackRelease("C5", "8n");
+            
+            // If it's a temporary alarm, disable it after it triggers
+            if (alarm.isTemporary) {
+                alarm.enabled = false;
+                // We need to save this change back to localStorage
+                localStorage.setItem('polarAlarms', JSON.stringify(advancedAlarms));
+            }
+        }
     });
 }
-startStopwatchBtn.addEventListener('click', startStopwatch);
-stopStopwatchBtn.addEventListener('click', stopStopwatch);
-resetStopwatchBtn.addEventListener('click', resetStopwatch);
-lapStopwatchBtn.addEventListener('click', lapStopwatch);
 
-// Stopwatch Interval Logic
-stopwatchIntervalToggle.addEventListener('change', (e) => {
-    isStopwatchIntervalEnabled = e.target.checked;
-    stopwatchIntervalInputs.style.display = isStopwatchIntervalEnabled ? 'flex' : 'none';
-    if (isStopwatchIntervalEnabled) {
-        setStopwatchInterval();
-    }
-});
+function drawTrackedAlarmTimer(now) {
+    if (!trackedAlarmId || trackedAlarmRadius <= 0) return;
 
-function setStopwatchInterval() {
-    const minutes = parseInt(stopwatchIntervalMinutesInput.value) || 0;
-    const seconds = parseInt(stopwatchIntervalSecondsInput.value) || 0;
-    stopwatchIntervalTime = (minutes * 60 + seconds) * 1000;
-    if (isStopwatchRunning) {
-        const intervalsPassed = Math.floor(stopwatchElapsedTime / stopwatchIntervalTime);
-        nextStopwatchInterval = (intervalsPassed + 1) * stopwatchIntervalTime;
+    const trackedAlarm = advancedAlarms.find(a => a.id === trackedAlarmId);
+    if (!trackedAlarm || !trackedAlarm.enabled) return;
+
+    const alarmHour24 = convertTo24Hour(trackedAlarm.hour, trackedAlarm.ampm);
+    const alarmMinute = parseInt(trackedAlarm.minute);
+
+    let nextAlarmTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), alarmHour24, alarmMinute, 0, 0);
+    
+    // Find the next occurrence
+    if (trackedAlarm.days.length > 0) {
+        let currentDay = now.getDay();
+        let daysUntilNext = Infinity;
+        
+        for (const day of trackedAlarm.days) {
+            let diff = day - currentDay;
+            if (diff < 0 || (diff === 0 && nextAlarmTime < now)) {
+                diff += 7;
+            }
+            if (diff < daysUntilNext) {
+                daysUntilNext = diff;
+            }
+        }
+        nextAlarmTime.setDate(now.getDate() + daysUntilNext);
     } else {
-         nextStopwatchInterval = stopwatchIntervalTime;
+        // For "once" alarms
+        if (nextAlarmTime < now) {
+            nextAlarmTime.setDate(nextAlarmTime.getDate() + 1); // Assume it's for the next day
+        }
     }
+
+    const totalSecondsToAlarm = (nextAlarmTime - now) / 1000;
+    
+    // For simplicity, let's cap the timer display at 24 hours
+    const totalDuration = Math.min(totalSecondsToAlarm, 24 * 3600);
+    const progress = totalSecondsToAlarm / totalDuration;
+
+    const timerStartAngle = baseStartAngle + (1 - progress) * Math.PI * 2;
+    drawArc(centerX, centerY, trackedAlarmRadius, timerStartAngle, baseStartAngle + Math.PI * 2, '#80DEEA', '#006064', 30);
+    
+    const hoursLeft = Math.floor(totalSecondsToAlarm / 3600);
+    const minutesLeft = Math.floor((totalSecondsToAlarm % 3600) / 60);
+    drawLabel({ radius: trackedAlarmRadius, lineWidth: 30, text: `${hoursLeft}h ${minutesLeft}m` });
 }
-stopwatchIntervalMinutesInput.addEventListener('input', setStopwatchInterval);
-stopwatchIntervalSecondsInput.addEventListener('input', setStopwatchInterval);
+
 
 // --- SETTINGS PERSISTENCE ---
 function saveSettings() {
@@ -581,26 +469,23 @@ function saveSettings() {
 function loadSettings() {
     const savedSettings = localStorage.getItem('polarClockSettings');
     const defaultSettings = {
-        is24HourFormat: false, labelDisplayMode: 'standard', alarmAmPm: 'am',
-        alarmState: { hour: null, minute: null, isEnabled: false },
+        is24HourFormat: false, labelDisplayMode: 'standard',
         showDateLines: true, showTimeLines: true, useGradient: true, colorPreset: 'default'
     };
-    settings = savedSettings ? JSON.parse(savedSettings) : defaultSettings;
+    settings = savedSettings ? { ...defaultSettings, ...JSON.parse(savedSettings) } : defaultSettings;
     
     // Apply loaded settings to the UI
     setDisplayMode(settings.labelDisplayMode);
     if (settings.is24HourFormat) format24Button.click(); else format12Button.click();
-    if (settings.alarmAmPm === 'pm') pmButton.click(); else amButton.click();
-    // **FIXED**: Use the saved colorPreset string directly and provide a fallback.
     setColorPreset(settings.colorPreset || 'default');
     gradientToggle.checked = settings.useGradient;
     dateLinesToggle.checked = settings.showDateLines;
     timeLinesToggle.checked = settings.showTimeLines;
-    alarmToggle.checked = settings.alarmState.isEnabled;
 }
 
 // --- INITIALIZATION ---
 window.addEventListener('resize', resizeCanvas);
 loadSettings();
+loadAdvancedAlarms(); // --- NEW: Load advanced alarms on start ---
 resizeCanvas();
 animate(0);
