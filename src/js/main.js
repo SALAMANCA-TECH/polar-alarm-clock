@@ -1,7 +1,9 @@
 // --- CONSOLIDATED DOM ELEMENTS ---
-const clocksGrid = document.getElementById('clocks-grid');
-// const digitalTime = document.getElementById('digitalTime');
-// const digitalDate = document.getElementById('digitalDate');
+const canvas = document.getElementById('polarClockCanvas');
+const ctx = canvas.getContext('2d');
+const digitalTime = document.getElementById('digitalTime');
+const digitalDate = document.getElementById('digitalDate');
+const smallClocksContainer = document.getElementById('small-clocks-container');
 // Views
 const mainView = document.getElementById('mainView');
 const settingsView = document.getElementById('settingsView');
@@ -51,10 +53,22 @@ const timeLinesToggle = document.getElementById('timeLinesToggle');
 
 // --- GLOBAL STATE ---
 const MAX_CLOCKS = 12;
-let clocks = []; // Centralized array for all clock instances
+let clocks = []; // Centralized array for all small clock instances
 let settings = {};
 const baseStartAngle = -Math.PI / 2;
 let lastTimestamp = 0;
+
+let centerX, centerY, clockRadius;
+let secondsRadius, minutesRadius, hoursRadius, dayRadius, monthRadius, timerRadius, trackedAlarmRadius;
+
+const animationState = {
+    month: { isChasing: false, chaseProgress: 0 },
+    day: { isChasing: false, chaseProgress: 0 },
+    hours: { isChasing: false, chaseProgress: 0 },
+    minutes: { isChasing: false, chaseProgress: 0 },
+    seconds: { isChasing: false, chaseProgress: 0 }
+};
+let lastNow = new Date();
 
 // --- NEW ADVANCED ALARM STATE ---
 let lastMinuteChecked = -1; // To prevent multiple triggers in the same minute
@@ -73,6 +87,28 @@ const colorPalettes = {
 };
 
 // --- CORE DRAWING & ANIMATION ---
+const resizeCanvas = () => {
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    centerX = canvas.width / 2;
+    centerY = canvas.height / 2;
+    clockRadius = Math.min(centerX, centerY) * 0.9;
+
+    const monthLineWidth = 20;
+    const otherLineWidth = 30;
+    const hourLineWidth = 45;
+    const gap = 20;
+
+    secondsRadius = clockRadius - (otherLineWidth / 2);
+    minutesRadius = secondsRadius - (otherLineWidth / 2) - gap - (otherLineWidth / 2);
+    hoursRadius = minutesRadius - (otherLineWidth / 2) - gap - (hourLineWidth / 2);
+    dayRadius = hoursRadius - (hourLineWidth / 2) - gap - (otherLineWidth / 2);
+    monthRadius = dayRadius - (otherLineWidth / 2) - gap - (monthLineWidth / 2);
+    timerRadius = monthRadius - (monthLineWidth / 2) - gap - (otherLineWidth / 2);
+    trackedAlarmRadius = timerRadius - (otherLineWidth / 2) - gap - (otherLineWidth / 2);
+};
+
+const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
 
 const drawArc = (ctx, x, y, radius, startAngle, endAngle, colorLight, colorDark, lineWidth) => {
     if (startAngle >= endAngle - 0.01 || radius <= 0) return;
@@ -88,11 +124,40 @@ const drawArc = (ctx, x, y, radius, startAngle, endAngle, colorLight, colorDark,
     ctx.stroke();
 };
 
+const drawMainClockLabel = (ctx, arc) => {
+    const textX = centerX;
+    const textY = centerY + arc.radius;
+
+    let fontSizeMultiplier = (arc.key === 'month') ? 0.8 : 0.6;
+    let circleSizeMultiplier = (arc.key === 'month') ? 0.85 : 0.7;
+    if (settings.labelDisplayMode === 'percentage') fontSizeMultiplier *= 0.85;
+
+    const circleRadius = arc.lineWidth * circleSizeMultiplier;
+    ctx.beginPath();
+    ctx.arc(textX, textY, circleRadius, 0, Math.PI * 2);
+    ctx.fillStyle = '#000000';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(textX, textY, circleRadius, 0, Math.PI * 2);
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = `${arc.lineWidth * fontSizeMultiplier}px Bahnschrift`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(arc.text, textX, textY);
+};
+
 const animate = (timestamp) => {
     if (!lastTimestamp) lastTimestamp = timestamp;
     const deltaTime = timestamp - lastTimestamp;
     lastTimestamp = timestamp;
 
+    // Draw the main clock
+    drawClock(deltaTime);
+
+    // Update and draw small clocks
     updateClockStates(deltaTime);
 
     clocks.forEach(clock => {
@@ -131,47 +196,177 @@ const animate = (timestamp) => {
             if (clock.type === 'stopwatch') {
                 clockDiv.appendChild(lapsDiv);
             }
-            clocksGrid.appendChild(clockDiv);
+            smallClocksContainer.appendChild(clockDiv);
         }
 
-        const canvas = clockDiv.querySelector('canvas');
-        if (canvas.offsetWidth > 0 && (canvas.width !== canvas.offsetWidth || canvas.height !== canvas.offsetHeight)) {
-            canvas.width = canvas.offsetWidth;
-            canvas.height = canvas.offsetHeight;
+        const smallCanvas = clockDiv.querySelector('canvas');
+        if (smallCanvas.offsetWidth > 0 && (smallCanvas.width !== smallCanvas.offsetWidth || smallCanvas.height !== smallCanvas.offsetHeight)) {
+            smallCanvas.width = smallCanvas.offsetWidth;
+            smallCanvas.height = smallCanvas.offsetHeight;
         }
 
-        if (canvas.width > 0) {
-            drawClockInstance(canvas, clock);
+        if (smallCanvas.width > 0) {
+            drawClockInstance(smallCanvas, clock);
         }
     });
 
     const clockIds = new Set(clocks.map(c => `clock-${c.id}`));
-    Array.from(clocksGrid.children).forEach(child => {
+    Array.from(smallClocksContainer.children).forEach(child => {
         if (!clockIds.has(child.id)) {
-            clocksGrid.removeChild(child);
+            smallClocksContainer.removeChild(child);
         }
     });
 
     requestAnimationFrame(animate);
 };
 
+function getLabelText(unit, now) {
+    const year = now.getFullYear(), month = now.getMonth(), date = now.getDate(), hours = now.getHours(), minutes = now.getMinutes(), seconds = now.getSeconds(), milliseconds = now.getMilliseconds();
+    const daysInMonth = getDaysInMonth(year, month);
+
+    switch (settings.labelDisplayMode) {
+        case 'percentage':
+            let percent = 0;
+            const totalMsInDay = 86400000;
+            const currentMsInDay = (hours * 3600 + minutes * 60 + seconds) * 1000 + milliseconds;
+            if (unit === 'seconds') percent = (seconds * 1000 + milliseconds) / 60000 * 100;
+            if (unit === 'minutes') percent = (minutes * 60000 + seconds * 1000 + milliseconds) / 3600000 * 100;
+            if (unit === 'hours') percent = ((hours % 12) * 3600000 + minutes * 60000 + seconds * 1000 + milliseconds) / 43200000 * 100;
+            if (unit === 'day') percent = ((date - 1) * totalMsInDay + currentMsInDay) / (daysInMonth * totalMsInDay) * 100;
+            if (unit === 'month') percent = (month + ((date - 1) * totalMsInDay + currentMsInDay) / (daysInMonth * totalMsInDay)) / 12 * 100;
+            return `${Math.floor(percent)}%`;
+        case 'remainder':
+            if (unit === 'seconds') return 59 - seconds;
+            if (unit === 'minutes') return 59 - minutes;
+            if (unit === 'hours') return 11 - (hours % 12);
+            if (unit === 'day') return daysInMonth - date;
+            if (unit === 'month') return 11 - month;
+            return '';
+        default: // standard
+            if (unit === 'seconds') return seconds.toString().padStart(2, '0');
+            if (unit === 'minutes') return minutes.toString().padStart(2, '0');
+            if (unit === 'hours') {
+                if (settings.is24HourFormat) {
+                    return hours.toString().padStart(2, '0');
+                } else {
+                    return (hours % 12 || 12).toString();
+                }
+            }
+            if (unit === 'day') return date.toString();
+            if (unit === 'month') return (month + 1).toString().padStart(2, '0');
+            return '';
+    }
+}
+
+const drawClock = (deltaTime) => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const now = new Date();
+    const year = now.getFullYear(), month = now.getMonth(), date = now.getDate(), hours = now.getHours(), minutes = now.getMinutes(), seconds = now.getSeconds();
+    const daysInMonth = getDaysInMonth(year, month);
+
+    // Calculate angles
+    const monthEndAngle = baseStartAngle + ((month + date / daysInMonth) / 12) * Math.PI * 2;
+    const dayEndAngle = baseStartAngle + ((date - 1 + (hours + minutes / 60) / 24) / daysInMonth) * Math.PI * 2;
+    const hoursEndAngle = baseStartAngle + (((hours % 12) + minutes / 60) / 12) * Math.PI * 2;
+    const minutesEndAngle = baseStartAngle + ((minutes + seconds / 60) / 60) * Math.PI * 2;
+    const secondsEndAngle = baseStartAngle + ((seconds + now.getMilliseconds() / 1000) / 60) * Math.PI * 2;
+
+    // Handle chasing animation on wrap-around
+    const animationDuration = 500;
+    const timeUnits = [
+        { key: 'seconds', wrap: now.getSeconds() < lastNow.getSeconds() },
+        { key: 'minutes', wrap: now.getMinutes() < lastNow.getMinutes() },
+        { key: 'hours', wrap: (now.getHours() % 12) < (lastNow.getHours() % 12) },
+        { key: 'day', wrap: now.getDate() !== lastNow.getDate() },
+        { key: 'month', wrap: now.getMonth() < lastNow.getMonth() }
+    ];
+    timeUnits.forEach(unit => {
+        const state = animationState[unit.key];
+        if (unit.wrap) { state.isChasing = true; state.chaseProgress = 0; }
+        if (state.isChasing) {
+            state.chaseProgress += deltaTime;
+            if (state.chaseProgress >= animationDuration) state.isChasing = false;
+        }
+    });
+
+    const arcs = [
+        { key: 'month', radius: monthRadius, colors: settings.currentColors.month, lineWidth: 20, endAngle: monthEndAngle },
+        { key: 'day', radius: dayRadius, colors: settings.currentColors.day, lineWidth: 30, endAngle: dayEndAngle },
+        { key: 'hours', radius: hoursRadius, colors: settings.currentColors.hours, lineWidth: 45, endAngle: hoursEndAngle },
+        { key: 'minutes', radius: minutesRadius, colors: settings.currentColors.minutes, lineWidth: 30, endAngle: minutesEndAngle },
+        { key: 'seconds', radius: secondsRadius, colors: settings.currentColors.seconds, lineWidth: 30, endAngle: secondsEndAngle }
+    ];
+
+    arcs.forEach(arc => {
+        if (arc.radius > 0) {
+            const state = animationState[arc.key];
+            drawArc(ctx, centerX, centerY, arc.radius, baseStartAngle, arc.endAngle, arc.colors.light, arc.colors.dark, arc.lineWidth);
+            if (state.isChasing) {
+                const progressRatio = state.chaseProgress / animationDuration;
+                const chaseStartAngle = baseStartAngle + (progressRatio * Math.PI * 2);
+                drawArc(ctx, centerX, centerY, arc.radius, chaseStartAngle, baseStartAngle + Math.PI * 2, arc.colors.light, arc.colors.dark, arc.lineWidth);
+            }
+            arc.text = getLabelText(arc.key, now);
+            drawMainClockLabel(ctx, arc);
+        }
+    });
+
+    // Draw separator lines
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.strokeStyle = 'white';
+    ctx.beginPath();
+    if (settings.showTimeLines && hoursRadius > 0) {
+        ctx.lineWidth = 4;
+        for (let i = 1; i <= 12; i++) {
+            if (i === 6) continue;
+            const angle = baseStartAngle + (i / 12) * Math.PI * 2;
+            ctx.moveTo(centerX + Math.cos(angle) * (hoursRadius - 22.5), centerY + Math.sin(angle) * (hoursRadius - 22.5));
+            ctx.lineTo(centerX + Math.cos(angle) * (secondsRadius + 15), centerY + Math.sin(angle) * (secondsRadius + 15));
+        }
+    }
+    if (settings.showDateLines && dayRadius > 0) {
+        ctx.lineWidth = 2;
+        for (let i = 1; i <= 12; i++) {
+            if (i === 6) continue;
+            const angle = baseStartAngle + (i / 12) * Math.PI * 2;
+            ctx.moveTo(centerX + Math.cos(angle) * (monthRadius - 10), centerY + Math.sin(angle) * (monthRadius - 10));
+            ctx.lineTo(centerX + Math.cos(angle) * (monthRadius + 10), centerY + Math.sin(angle) * (monthRadius + 10));
+        }
+        const lineStartDay = dayRadius - 15, lineEndDay = dayRadius + 15;
+        for (let i = 1; i <= daysInMonth; i++) {
+            const angle = baseStartAngle + (i / daysInMonth) * Math.PI * 2;
+            if (Math.abs(angle - (Math.PI / 2)) < 0.01) continue;
+             ctx.moveTo(centerX + Math.cos(angle) * lineStartDay, centerY + Math.sin(angle) * lineStartDay);
+            ctx.lineTo(centerX + Math.cos(angle) * lineEndDay, centerY + Math.sin(angle) * lineEndDay);
+        }
+    }
+    ctx.stroke();
+    ctx.restore();
+
+    // Update digital display
+    digitalTime.textContent = now.toLocaleTimeString([], { hour12: !settings.is24HourFormat, hour: 'numeric', minute: '2-digit' });
+    digitalDate.textContent = `${now.getFullYear()}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getDate().toString().padStart(2, '0')}`;
+    lastNow = now;
+};
+
 function drawClockInstance(canvas, clock) {
-    const ctx = canvas.getContext('2d');
+    const smallCtx = canvas.getContext('2d');
     const { width, height } = canvas;
-    ctx.clearRect(0, 0, width, height);
+    smallCtx.clearRect(0, 0, width, height);
 
     switch (clock.type) {
         case 'clock':
-            drawStandardClock(ctx, width, height, clock);
+            drawStandardClock(smallCtx, width, height, clock);
             break;
         case 'timer':
-            drawTimer(ctx, width, height, clock);
+            drawTimer(smallCtx, width, height, clock);
             break;
         case 'stopwatch':
-            drawStopwatch(ctx, width, height, clock);
+            drawStopwatch(smallCtx, width, height, clock);
             break;
         case 'alarm':
-            drawAlarm(ctx, width, height, clock);
+            drawAlarm(smallCtx, width, height, clock);
             break;
     }
 }
@@ -202,7 +397,7 @@ function drawStandardClock(ctx, width, height, clock) {
     const clockRadius = Math.min(centerX, centerY) * 0.8;
     const now = new Date();
     const hours = now.getHours(), minutes = now.getMinutes(), seconds = now.getSeconds();
-    
+
     const secondAngle = baseStartAngle + ((seconds + now.getMilliseconds() / 1000) / 60) * Math.PI * 2;
     const minuteAngle = baseStartAngle + ((minutes + seconds / 60) / 60) * Math.PI * 2;
     const hourAngle = baseStartAngle + (((hours % 12) + minutes / 60) / 12) * Math.PI * 2;
@@ -216,7 +411,7 @@ function drawStandardClock(ctx, width, height, clock) {
     drawArc(ctx, centerX, centerY, secondRadius, baseStartAngle, secondAngle, colors.seconds.light, colors.seconds.dark, lineWidth);
     drawArc(ctx, centerX, centerY, minuteRadius, baseStartAngle, minuteAngle, colors.minutes.light, colors.minutes.dark, lineWidth);
     drawArc(ctx, centerX, centerY, hourRadius, baseStartAngle, hourAngle, colors.hours.light, colors.hours.dark, lineWidth * 1.5);
-    
+
     const timeStr = now.toLocaleTimeString([], { hour12: !settings.is24HourFormat, hour: 'numeric', minute: '2-digit' });
     const digitalDisplay = document.getElementById(`clock-${clock.id}`).querySelector('.digital-display-small');
     if (digitalDisplay) digitalDisplay.textContent = timeStr;
@@ -227,11 +422,12 @@ function drawTimer(ctx, width, height, clock) {
     const centerY = height / 2;
     const radius = Math.min(centerX, centerY) * 0.8;
     const { totalSeconds, remainingSeconds } = clock.state;
-    
+
     const progress = Math.max(0, remainingSeconds) / totalSeconds;
     const endAngle = baseStartAngle + progress * Math.PI * 2;
 
-    drawArc(ctx, centerX, centerY, radius, baseStartAngle, endAngle, '#FF8A80', '#D50000', radius * 0.2);
+    const colors = settings.currentColors;
+    drawArc(ctx, centerX, centerY, radius, baseStartAngle, endAngle, colors.hours.light, colors.hours.dark, radius * 0.2);
 
     const minutes = Math.floor(Math.abs(remainingSeconds) / 60);
     const seconds = Math.floor(Math.abs(remainingSeconds) % 60);
@@ -273,7 +469,6 @@ function drawStopwatch(ctx, width, height, clock) {
 function showView(viewToShow) {
     [mainView, settingsView, customizeView, toolsView].forEach(v => v.style.display = 'none');
     viewToShow.style.display = 'flex';
-    if (viewToShow !== toolsView) currentMode = 'clock';
 }
 goToSettingsBtn.addEventListener('click', () => showView(settingsView));
 goToCustomizeBtn.addEventListener('click', () => showView(customizeView));
@@ -289,8 +484,6 @@ function showToolsPanel(panelToShow, tabToActivate) {
     [timerPanel, alarmPanel, stopwatchPanel].forEach(p => p.style.display = 'none');
     panelToShow.style.display = 'flex';
     handleActiveButton(tabToActivate, [timerTab, alarmTab, stopwatchTab]);
-    currentMode = (panelToShow === stopwatchPanel) ? 'stopwatch' : 'clock';
-    if (currentMode === 'stopwatch') resetStopwatch(); // Reset on tab switch
 }
 timerTab.addEventListener('click', () => showToolsPanel(timerPanel, timerTab));
 alarmTab.addEventListener('click', () => showToolsPanel(alarmPanel, alarmTab));
@@ -433,7 +626,7 @@ function updateClockStates(deltaTime) {
     });
 }
 
-clocksGrid.addEventListener('click', (e) => {
+smallClocksContainer.addEventListener('click', (e) => {
     if (e.target.classList.contains('control-btn')) {
         const action = e.target.dataset.action;
         const clockDiv = e.target.closest('.clock-instance');
@@ -524,7 +717,18 @@ function checkAlarms(now) {
     });
 }
 
+function startClock() {
+    resizeCanvas();
+    // Failsafe: only start the animation if the canvas has a measurable size.
+    if (canvas.width > 0 && canvas.height > 0) {
+        requestAnimationFrame(animate);
+    } else {
+        // If the canvas is still size 0, wait for the next frame and try again.
+        requestAnimationFrame(startClock);
+    }
+}
+
 // --- INITIALIZATION ---
+window.addEventListener('resize', resizeCanvas);
 loadSettings();
-createClock('clock'); // Create a default clock on startup
-requestAnimationFrame(animate); // Start the clock safely
+startClock(); // Start the clock safely

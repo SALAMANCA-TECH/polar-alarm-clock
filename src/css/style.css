@@ -11,31 +11,64 @@ body {
     overflow: hidden;
 }
 
-/* Grid container for multiple clocks */
-.clocks-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1rem;
-    padding: 1rem;
-    width: 100%;
+/* Canvas container */
+.canvas-container {
+    position: relative;
     height: 100vh;
-    overflow-y: auto;
-    flex-grow: 1;
+    width: 100vh; /* Base size on viewport height */
+    max-width: calc(100vw - 380px); /* Guarantees space for the UI panel */
+    aspect-ratio: 1 / 1; /* This is key: it forces the element to be a perfect square */
+    flex-shrink: 0;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* Digital clock display */
+#digitalDisplay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    line-height: 1.2;
+    pointer-events: none;
+}
+
+#digitalTime {
+    font-size: 1.8em;
+    font-weight: 500;
+}
+
+#digitalDate {
+    font-size: 0.72em;
+    font-weight: 300;
+    opacity: 0.8;
+}
+
+#small-clocks-container {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    z-index: 10;
 }
 
 .clock-instance {
     position: relative;
-    width: 100%;
-    aspect-ratio: 1 / 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    width: 150px;
+    height: 150px;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    border: 1px solid #444;
 }
 
 .clock-instance canvas {
-    position: absolute;
-    top: 0;
-    left: 0;
     width: 100%;
     height: 100%;
 }

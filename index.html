@@ -9,10 +9,15 @@
     <link rel="stylesheet" href="src/css/style.css">
 </head>
 <body>
-    <!-- Grid Container for Multiple Clocks -->
-    <div id="clocks-grid" class="clocks-grid">
-        <!-- Clocks will be dynamically added here -->
+    <!-- Canvas Container for the Clock -->
+    <div class="canvas-container">
+        <canvas id="polarClockCanvas"></canvas>
+        <div id="digitalDisplay">
+            <div id="digitalTime"></div>
+            <div id="digitalDate"></div>
+        </div>
     </div>
+    <div id="small-clocks-container"></div>
 
     <!-- UI Container for Controls -->
     <div class="ui-container">
