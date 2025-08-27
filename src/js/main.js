@@ -391,6 +391,7 @@ goToToolsBtn.addEventListener('click', () => showView(toolsView));
 backToMainFromSettings.addEventListener('click', () => showView(mainView));
 backToMainFromCustomize.addEventListener('click', () => showView(mainView));
 backToMainFromTools.addEventListener('click', () => showView(mainView));
+goToAlarmsBtn.addEventListener('click', () => { window.location.href = 'alarms.html'; });
 
 
 // Tools Tabs
