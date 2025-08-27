@@ -6,25 +6,307 @@
     <title>Polar Clock Pro</title>
     <!-- Tone.js for audio synthesis -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
-    <link rel="stylesheet" href="src/css/style.css">
+    <style>
+        /* General page styling */
+        body {
+            display: flex;
+            justify-content: space-between; 
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #121212;
+            color: #ffffff;
+            font-family: 'Bahnschrift', sans-serif;
+            overflow: hidden;
+        }
+
+        /* Canvas container */
+        .canvas-container {
+            position: relative;
+            height: 100vh;
+            width: 100vh; /* Base size on viewport height */
+            max-width: calc(100vw - 380px); /* Guarantees space for the UI panel */
+            aspect-ratio: 1 / 1; /* This is key: it forces the element to be a perfect square */
+            flex-shrink: 0;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Digital clock display */
+        #digitalDisplay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            line-height: 1.2;
+            pointer-events: auto;
+            cursor: pointer;
+            border-radius: 50%;
+            padding: 20px;
+            transition: background-color 0.3s;
+        }
+
+        #digitalDisplay:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        #digitalTime {
+            font-size: 1.8em;
+            font-weight: 500;
+        }
+
+        #digitalDate {
+            font-size: 0.72em;
+            font-weight: 300;
+            opacity: 0.8;
+        }
+
+        /* --- UI STYLES --- */
+        .ui-container {
+            flex-grow: 1; /* Take up all remaining horizontal space */
+            min-width: 380px; /* Set a minimum width to keep UI usable */
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        .ui-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+            width: 100%;
+        }
+
+        .tab-buttons, .format-buttons, .display-mode-buttons, .color-preset-buttons, .main-nav-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            background-color: #2a2a2a;
+            border-radius: 10px;
+            padding: 5px;
+        }
+
+        .main-nav-buttons {
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+            max-width: 350px;
+        }
+
+        .view-header {
+            width: 100%;
+            max-width: 350px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .header-button, .back-button, .main-nav-button {
+            padding: 12px 18px;
+            font-size: 1.1rem;
+            border: 2px solid #444;
+            background-color: transparent;
+            color: #ccc;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s, border-color 0.3s;
+            width: 100%;
+            text-align: center;
+        }
+        .header-button:hover, .back-button:hover, .main-nav-button:hover {
+            background-color: #333;
+            border-color: #666;
+        }
+
+        .tab-button, .format-button, .display-mode-button, .color-preset-button {
+            padding: 10px;
+            border: none;
+            background-color: transparent;
+            color: #aaa;
+            font-family: 'Bahnschrift', sans-serif;
+            font-size: 0.9rem;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background-color 0.3s, color 0.3s;
+            white-space: nowrap;
+            flex-grow: 1;
+            text-align: center;
+        }
+
+        .tab-button.active, .format-button.active, .display-mode-button.active, .color-preset-button.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .ui-panel {
+            width: 100%;
+            max-width: 350px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .settings-section {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .settings-section h3 {
+            margin: 0 0 0.5rem 0;
+            color: #aaa;
+            font-weight: 300;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+        }
+
+        .time-inputs {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            font-size: 2.5rem;
+            font-weight: 300;
+            gap: 0.5rem;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .input-group label {
+            font-size: 0.7rem;
+            color: #888;
+            text-transform: uppercase;
+            margin-top: 5px;
+        }
+
+        .time-inputs input {
+            width: 65px;
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 2.5rem;
+            text-align: center;
+            font-family: 'Bahnschrift', sans-serif;
+            border-bottom: 2px solid #444;
+            transition: border-color 0.3s;
+        }
+
+        .time-inputs input:focus {
+            outline: none;
+            border-bottom-color: #4CAF50;
+        }
+
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+
+        .control-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .control-buttons button {
+            padding: 10px 20px;
+            font-size: 1rem;
+            border: 2px solid #444;
+            background-color: transparent;
+            color: #ccc;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+
+        .control-buttons button:hover {
+            background-color: #333;
+            border-color: #666;
+        }
+
+        .alarm-controls { display: flex; flex-direction: column; align-items: center; gap: 1.5rem; }
+        .am-pm-toggle { display: flex; background-color: #2a2a2a; border-radius: 10px; padding: 5px; }
+        .am-pm-button { padding: 8px 15px; font-size: 0.9rem; }
+        .setting-toggle { display: flex; align-items: center; justify-content: space-between; width: 100%; max-width: 250px; }
+        .switch { position: relative; display: inline-block; width: 60px; height: 34px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #2a2a2a; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 26px; width: 26px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #4CAF50; }
+        input:checked + .slider:before { transform: translateX(26px); }
+
+        #lapTimes {
+            width: 100%;
+            max-width: 300px;
+            max-height: 150px;
+            overflow-y: auto;
+            background-color: #2a2a2a;
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .lap-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+        }
+        .lap-number { color: #aaa; }
+
+        #stopwatchIntervalInputs.time-inputs {
+            font-size: 1.5rem;
+            gap: 0.2rem;
+        }
+        #stopwatchIntervalInputs input {
+            width: 40px;
+            font-size: 1.5rem;
+        }
+        #stopwatchIntervalInputs label {
+            font-size: 0.6rem;
+        }
+    </style>
 </head>
 <body>
     <!-- Canvas Container for the Clock -->
     <div class="canvas-container">
+    <div id="active-clock-name" style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); font-size: 1.5em; color: #fff; z-index: 10;"></div>
         <canvas id="polarClockCanvas"></canvas>
         <div id="digitalDisplay">
             <div id="digitalTime"></div>
             <div id="digitalDate"></div>
         </div>
+        <div id="miniature-clocks-container" style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 10;">
+            <!-- Miniature clocks will be added here -->
+        </div>
     </div>
-    <div id="small-clocks-container"></div>
 
     <!-- UI Container for Controls -->
     <div class="ui-container">
         <!-- Main Navigation View -->
         <div id="mainView" class="ui-content">
             <div class="main-nav-buttons">
-                <button id="addClockBtn" class="main-nav-button">New Clock</button>
                 <button id="goToToolsBtn" class="main-nav-button">Tools</button>
                 <button id="goToCustomizeBtn" class="main-nav-button">Customize</button>
                 <button id="goToSettingsBtn" class="main-nav-button">Settings</button>
@@ -44,9 +326,6 @@
             </div>
             <!-- Timer Panel -->
             <div id="timerPanel" class="ui-panel">
-                <div class="input-group">
-                    <input type="text" id="timerName" class="name-input" placeholder="Timer Name">
-                </div>
                 <div class="time-inputs">
                     <div class="input-group">
                         <input type="number" id="timerHours" placeholder="0" min="0" max="23" value="0">
@@ -105,11 +384,11 @@
             </div>
             <!-- Stopwatch Panel -->
             <div id="stopwatchPanel" class="ui-panel" style="display: none;">
-                <div class="input-group">
-                    <input type="text" id="stopwatchName" class="name-input" placeholder="Stopwatch Name">
-                </div>
                 <div class="control-buttons">
-                    <button id="startStopwatch">Add Stopwatch</button>
+                    <button id="startStopwatch">Start</button>
+                    <button id="stopStopwatch">Stop</button>
+                    <button id="lapStopwatch">Lap</button>
+                    <button id="resetStopwatch">Reset</button>
                 </div>
                 <div class="setting-toggle">
                     <span>Interval Sound</span>
@@ -195,7 +474,6 @@
             </div>
         </div>
     </div>
-    <script src="src/js/main.js"></script>
+    <script src="main.js" defer></script>
 </body>
 </html>
-
