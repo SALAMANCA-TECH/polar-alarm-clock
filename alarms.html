@@ -226,6 +226,18 @@
 
     <script>
         // All JavaScript logic is now restored and fully functional
+        function playSound(soundFile, volume = 1.0) {
+            if (!soundFile) return;
+            // Assumes a global 'settings' object exists or a default volume is fine
+            const audio = new Audio(`../assets/sounds/${soundFile}`);
+            audio.volume = volume;
+            audio.play().catch(e => console.error("Error playing sound:", e));
+            setTimeout(() => {
+                audio.pause();
+                audio.currentTime = 0;
+            }, 4000); // Stop after 4 seconds
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             // --- 1. STATE MANAGEMENT & CONSTANTS ---
             let alarms = [];
@@ -303,9 +315,21 @@
                     </div>
                     <div class="mb-4">
                         <label for="soundSelector" class="block text-slate-400 mb-1">Sound</label>
-                        <select id="soundSelector" class="w-full bg-slate-700 rounded-lg p-3 outline-none focus:ring-2 focus:ring-indigo-500">
-                            <option value="default">Default Tone</option>
-                        </select>
+                        <div class="flex items-center gap-2">
+                            <select id="soundSelector" class="w-full bg-slate-700 rounded-lg p-3 outline-none focus:ring-2 focus:ring-indigo-500">
+                                <option value="Ahooga.wav">Ahooga</option>
+                                <option value="bell01.mp3" selected>Bell 1</option>
+                                <option value="Bwauhm.mp3">Bwauhm</option>
+                                <option value="Lenovo_Error.mp3">Lenovo Error</option>
+                                <option value="nice_digital_watch.mp3">Nice Watch</option>
+                                <option value="rotten_digital_watch.wav">Rotten Watch</option>
+                                <option value="Tick_Tock.wav">Tick Tock 1</option>
+                                <option value="Tick_Tock_Two.wav">Tick Tock 2</option>
+                            </select>
+                            <button type="button" id="previewAlarmSound" class="bg-slate-600 hover:bg-slate-500 text-white font-bold py-3 px-4 rounded-lg flex items-center transition-colors duration-300">
+                                <i class="ph-play text-xl"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="mb-6">
                         <label class="block text-slate-400 mb-2">Color</label>
@@ -683,7 +707,14 @@
                 const saveBtn = alarmModal.querySelector('#saveBtn');
                 const deleteAlarmBtn = alarmModal.querySelector('#deleteAlarmBtn');
                 const soundSelector = alarmModal.querySelector('#soundSelector');
+                const previewSoundBtn = alarmModal.querySelector('#previewAlarmSound');
                 
+                previewSoundBtn.addEventListener('click', () => {
+                    const soundFile = soundSelector.value;
+                    // The alarms page doesn't have a volume control, so we'll use a default
+                    playSound(soundFile, 1.0);
+                });
+
                 populateColorPicker(colorSelector);
                 
                 const is24h = settings.timeFormat === '24h';
