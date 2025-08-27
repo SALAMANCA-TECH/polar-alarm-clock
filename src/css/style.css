@@ -27,6 +27,7 @@ canvas {
     height: 100%;
 }
 
+/* Digital clock display */
 #digitalDisplay {
     position: absolute;
     top: 50%;

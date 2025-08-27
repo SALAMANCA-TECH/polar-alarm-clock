@@ -59,7 +59,7 @@ const baseStartAngle = -Math.PI / 2;
 let lastTimestamp = 0;
 
 let centerX, centerY, clockRadius;
-let secondsRadius, minutesRadius, hoursRadius, dayRadius, monthRadius;
+let secondsRadius, minutesRadius, hoursRadius, dayRadius, monthRadius, timerRadius, trackedAlarmRadius;
 
 const animationState = {
     month: { isChasing: false, chaseProgress: 0 },
@@ -104,6 +104,8 @@ const resizeCanvas = () => {
     hoursRadius = minutesRadius - (otherLineWidth / 2) - gap - (hourLineWidth / 2);
     dayRadius = hoursRadius - (hourLineWidth / 2) - gap - (otherLineWidth / 2);
     monthRadius = dayRadius - (otherLineWidth / 2) - gap - (monthLineWidth / 2);
+    timerRadius = monthRadius - (monthLineWidth / 2) - gap - (otherLineWidth / 2);
+    trackedAlarmRadius = timerRadius - (otherLineWidth / 2) - gap - (otherLineWidth / 2);
 };
 
 const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
@@ -122,7 +124,7 @@ const drawArc = (ctx, x, y, radius, startAngle, endAngle, colorLight, colorDark,
     ctx.stroke();
 };
 
-const drawMainClockLabel = (arc) => {
+const drawMainClockLabel = (ctx, arc) => {
     const textX = centerX;
     const textY = centerY + arc.radius;
 
@@ -269,6 +271,24 @@ const drawClock = (deltaTime) => {
     const minutesEndAngle = baseStartAngle + ((minutes + seconds / 60) / 60) * Math.PI * 2;
     const secondsEndAngle = baseStartAngle + ((seconds + now.getMilliseconds() / 1000) / 60) * Math.PI * 2;
 
+    // Handle chasing animation on wrap-around
+    const animationDuration = 500;
+    const timeUnits = [
+        { key: 'seconds', wrap: now.getSeconds() < lastNow.getSeconds() },
+        { key: 'minutes', wrap: now.getMinutes() < lastNow.getMinutes() },
+        { key: 'hours', wrap: (now.getHours() % 12) < (lastNow.getHours() % 12) },
+        { key: 'day', wrap: now.getDate() !== lastNow.getDate() },
+        { key: 'month', wrap: now.getMonth() < lastNow.getMonth() }
+    ];
+    timeUnits.forEach(unit => {
+        const state = animationState[unit.key];
+        if (unit.wrap) { state.isChasing = true; state.chaseProgress = 0; }
+        if (state.isChasing) {
+            state.chaseProgress += deltaTime;
+            if (state.chaseProgress >= animationDuration) state.isChasing = false;
+        }
+    });
+
     const arcs = [
         { key: 'month', radius: monthRadius, colors: settings.currentColors.month, lineWidth: 20, endAngle: monthEndAngle },
         { key: 'day', radius: dayRadius, colors: settings.currentColors.day, lineWidth: 30, endAngle: dayEndAngle },
@@ -279,9 +299,15 @@ const drawClock = (deltaTime) => {
 
     arcs.forEach(arc => {
         if (arc.radius > 0) {
+            const state = animationState[arc.key];
             drawArc(ctx, centerX, centerY, arc.radius, baseStartAngle, arc.endAngle, arc.colors.light, arc.colors.dark, arc.lineWidth);
+            if (state.isChasing) {
+                const progressRatio = state.chaseProgress / animationDuration;
+                const chaseStartAngle = baseStartAngle + (progressRatio * Math.PI * 2);
+                drawArc(ctx, centerX, centerY, arc.radius, chaseStartAngle, baseStartAngle + Math.PI * 2, arc.colors.light, arc.colors.dark, arc.lineWidth);
+            }
             arc.text = getLabelText(arc.key, now);
-            drawMainClockLabel(arc);
+            drawMainClockLabel(ctx, arc);
         }
     });
 
@@ -400,7 +426,8 @@ function drawTimer(ctx, width, height, clock) {
     const progress = Math.max(0, remainingSeconds) / totalSeconds;
     const endAngle = baseStartAngle + progress * Math.PI * 2;
 
-    drawArc(ctx, centerX, centerY, radius, baseStartAngle, endAngle, '#FF8A80', '#D50000', radius * 0.2);
+    const colors = settings.currentColors;
+    drawArc(ctx, centerX, centerY, radius, baseStartAngle, endAngle, colors.hours.light, colors.hours.dark, radius * 0.2);
 
     const minutes = Math.floor(Math.abs(remainingSeconds) / 60);
     const seconds = Math.floor(Math.abs(remainingSeconds) % 60);
