@@ -9,13 +9,9 @@
     <link rel="stylesheet" href="src/css/style.css">
 </head>
 <body>
-    <!-- Canvas Container for the Clock -->
-    <div class="canvas-container">
-        <canvas id="polarClockCanvas"></canvas>
-        <div id="digitalDisplay">
-            <div id="digitalTime"></div>
-            <div id="digitalDate"></div>
-        </div>
+    <!-- Grid Container for Multiple Clocks -->
+    <div id="clocks-grid" class="clocks-grid">
+        <!-- Clocks will be dynamically added here -->
     </div>
 
     <!-- UI Container for Controls -->
@@ -23,6 +19,7 @@
         <!-- Main Navigation View -->
         <div id="mainView" class="ui-content">
             <div class="main-nav-buttons">
+                <button id="addClockBtn" class="main-nav-button">New Clock</button>
                 <button id="goToToolsBtn" class="main-nav-button">Tools</button>
                 <button id="goToCustomizeBtn" class="main-nav-button">Customize</button>
                 <button id="goToSettingsBtn" class="main-nav-button">Settings</button>
@@ -42,6 +39,9 @@
             </div>
             <!-- Timer Panel -->
             <div id="timerPanel" class="ui-panel">
+                <div class="input-group">
+                    <input type="text" id="timerName" class="name-input" placeholder="Timer Name">
+                </div>
                 <div class="time-inputs">
                     <div class="input-group">
                         <input type="number" id="timerHours" placeholder="0" min="0" max="23" value="0">
@@ -100,11 +100,11 @@
             </div>
             <!-- Stopwatch Panel -->
             <div id="stopwatchPanel" class="ui-panel" style="display: none;">
+                <div class="input-group">
+                    <input type="text" id="stopwatchName" class="name-input" placeholder="Stopwatch Name">
+                </div>
                 <div class="control-buttons">
-                    <button id="startStopwatch">Start</button>
-                    <button id="stopStopwatch">Stop</button>
-                    <button id="lapStopwatch">Lap</button>
-                    <button id="resetStopwatch">Reset</button>
+                    <button id="startStopwatch">Add Stopwatch</button>
                 </div>
                 <div class="setting-toggle">
                     <span>Interval Sound</span>
