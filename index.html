@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Polar Clock Pro</title>
-    <!-- Tone.js for audio synthesis -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
     <style>
         /* General page styling */
         body {
@@ -286,9 +284,34 @@
         #stopwatchIntervalInputs label {
             font-size: 0.6rem;
         }
+        .sound-select {
+            background-color: #2a2a2a;
+            color: white;
+            border: 1px solid #444;
+            border-radius: 5px;
+            padding: 5px;
+            max-width: 120px;
+        }
+        .preview-btn {
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            border: 1px solid #444;
+            background-color: #333;
+            color: #ccc;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+        .preview-btn:hover {
+            background-color: #444;
+            border-color: #666;
+        }
     </style>
 </head>
 <body>
+    <div id="loading-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #121212; display: flex; justify-content: center; align-items: center; z-index: 9999; transition: opacity 0.5s;">
+        <h1 style="color: white; font-size: 2em;">Loading...</h1>
+    </div>
     <!-- Canvas Container for the Clock -->
     <div class="canvas-container">
     <div id="active-clock-name" style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); font-size: 1.5em; color: #fff; z-index: 10;"></div>
@@ -354,6 +377,20 @@
                         <span class="slider"></span>
                     </label>
                 </div>
+                <div class="setting-toggle">
+                    <span>Sound</span>
+                    <select id="timerSound" class="sound-select">
+                        <option value="Ahooga.wav">Ahooga</option>
+                        <option value="bell01.mp3" selected>Bell 1</option>
+                        <option value="Bwauhm.mp3">Bwauhm</option>
+                        <option value="Lenovo_Error.mp3">Lenovo Error</option>
+                        <option value="nice_digital_watch.mp3">Nice Watch</option>
+                        <option value="rotten_digital_watch.wav">Rotten Watch</option>
+                        <option value="Tick_Tock.wav">Tick Tock 1</option>
+                        <option value="Tick_Tock_Two.wav">Tick Tock 2</option>
+                    </select>
+                    <button class="preview-btn" data-target="timerSound">Preview</button>
+                </div>
             </div>
             <!-- Alarm Panel -->
             <div id="alarmPanel" class="ui-panel" style="display: none;">
@@ -380,6 +417,20 @@
                             <span class="slider"></span>
                         </label>
                     </div>
+                    <div class="setting-toggle">
+                        <span>Sound</span>
+                        <select id="alarmSound" class="sound-select">
+                            <option value="Ahooga.wav">Ahooga</option>
+                            <option value="bell01.mp3" selected>Bell 1</option>
+                            <option value="Bwauhm.mp3">Bwauhm</option>
+                            <option value="Lenovo_Error.mp3">Lenovo Error</option>
+                            <option value="nice_digital_watch.mp3">Nice Watch</option>
+                            <option value="rotten_digital_watch.wav">Rotten Watch</option>
+                            <option value="Tick_Tock.wav">Tick Tock 1</option>
+                            <option value="Tick_Tock_Two.wav">Tick Tock 2</option>
+                        </select>
+                        <button class="preview-btn" data-target="alarmSound">Preview</button>
+                    </div>
                 </div>
             </div>
             <!-- Stopwatch Panel -->
@@ -396,6 +447,20 @@
                         <input type="checkbox" id="stopwatchIntervalToggle">
                         <span class="slider"></span>
                     </label>
+                </div>
+                <div class="setting-toggle">
+                    <span>Sound</span>
+                    <select id="stopwatchSound" class="sound-select">
+                        <option value="Ahooga.wav">Ahooga</option>
+                        <option value="bell01.mp3">Bell 1</option>
+                        <option value="Bwauhm.mp3">Bwauhm</option>
+                        <option value="Lenovo_Error.mp3">Lenovo Error</option>
+                        <option value="nice_digital_watch.mp3">Nice Watch</option>
+                        <option value="rotten_digital_watch.wav">Rotten Watch</option>
+                        <option value="Tick_Tock.wav" selected>Tick Tock 1</option>
+                        <option value="Tick_Tock_Two.wav">Tick Tock 2</option>
+                    </select>
+                    <button class="preview-btn" data-target="stopwatchSound">Preview</button>
                 </div>
                 <div id="stopwatchIntervalInputs" class="time-inputs" style="display: none;">
                     <div class="input-group">
@@ -470,6 +535,16 @@
                         <input type="checkbox" id="timeLinesToggle" checked>
                         <span class="slider"></span>
                     </label>
+                </div>
+            </div>
+            <div class="settings-section">
+                <h3>Audio</h3>
+                <div class="setting-toggle">
+                    <span>Volume</span>
+                    <select id="volumeControl" class="sound-select">
+                        <option value="0.5">Quiet</option>
+                        <option value="1.0" selected>Loud</option>
+                    </select>
                 </div>
             </div>
         </div>

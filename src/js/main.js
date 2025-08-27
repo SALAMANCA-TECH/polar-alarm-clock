@@ -63,6 +63,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const gradientToggle = document.getElementById('gradientToggle');
     const dateLinesToggle = document.getElementById('dateLinesToggle');
     const timeLinesToggle = document.getElementById('timeLinesToggle');
+    const timerSound = document.getElementById('timerSound');
+    const alarmSound = document.getElementById('alarmSound');
+    const volumeControl = document.getElementById('volumeControl');
+    const stopwatchSound = document.getElementById('stopwatchSound');
 
     // --- GLOBAL STATE ---
     let savedClocks = [];
@@ -104,11 +108,6 @@ document.addEventListener('DOMContentLoaded', function() {
     let isStopwatchIntervalEnabled = false;
     let stopwatchIntervalTime = 0; // in ms
     let nextStopwatchInterval = 0;
-
-    // Audio
-    const feedbackDelay = new Tone.FeedbackDelay("8n", 0.5).toDestination();
-    const alarmSynth = new Tone.Synth({ volume: -8 }).connect(feedbackDelay);
-    let isToneStarted = false;
 
     // Color Palettes
     const colorPalettes = {
@@ -190,7 +189,7 @@ document.addEventListener('DOMContentLoaded', function() {
             timerRemainingSeconds -= dtSeconds;
             if (timerRemainingSeconds <= 0) {
                 timerRemainingSeconds = 0;
-                alarmSynth.triggerAttackRelease("C5", "8n");
+                playSound(settings.timerSound, settings.volume);
                 if (isIntervalMode) {
                     timerRemainingSeconds = timerTotalSeconds;
                 } else {
@@ -213,11 +212,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (clock.timerState.remainingSeconds <= 0) {
                     clock.timerState.remainingSeconds = 0;
                     clock.timerState.isRunning = false;
-                    // Optional: add sound/notification for background timers
+                    playSound(clock.settings.timerSound, clock.settings.volume);
                 }
             }
             if (clock.stopwatchState.isRunning) {
                 clock.stopwatchState.elapsedTime += deltaTime;
+                if (clock.stopwatchState.isInterval && clock.stopwatchState.intervalTime > 0 && clock.stopwatchState.elapsedTime >= clock.stopwatchState.nextInterval) {
+                    playSound(clock.settings.stopwatchSound, clock.settings.volume);
+                    clock.stopwatchState.nextInterval += clock.stopwatchState.intervalTime;
+                }
             }
         });
     }
@@ -572,6 +575,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 laps: [...lapTimes],
                 isInterval: isStopwatchIntervalEnabled,
                 intervalTime: stopwatchIntervalTime,
+                nextInterval: stopwatchIntervalTime,
             },
             settings: { ...settings },
         };
@@ -661,8 +665,7 @@ document.addEventListener('DOMContentLoaded', function() {
             stopwatchElapsedTime = Date.now() - stopwatchStartTime;
 
             if (isStopwatchIntervalEnabled && stopwatchIntervalTime > 0 && stopwatchElapsedTime >= nextStopwatchInterval) {
-                if (!isToneStarted) { Tone.start(); isToneStarted = true; }
-                alarmSynth.triggerAttackRelease("C5", "8n");
+                playSound(settings.stopwatchSound, settings.volume);
                 nextStopwatchInterval += stopwatchIntervalTime;
             }
         }
@@ -770,7 +773,6 @@ document.addEventListener('DOMContentLoaded', function() {
     intervalToggle.addEventListener('change', (e) => isIntervalMode = e.target.checked);
     function startTimer() {
         if (isTimerRunning) return;
-        if (!isToneStarted) { Tone.start(); isToneStarted = true; }
         
         // If starting from a paused state, don't reset the time
         if (timerRemainingSeconds <= 0) {
@@ -892,13 +894,18 @@ document.addEventListener('DOMContentLoaded', function() {
         gradientToggle.checked = settings.useGradient;
         dateLinesToggle.checked = settings.showDateLines;
         timeLinesToggle.checked = settings.showTimeLines;
+        volumeControl.value = settings.volume;
+        timerSound.value = settings.timerSound;
+        alarmSound.value = settings.alarmSound;
+        if (stopwatchSound) stopwatchSound.value = settings.stopwatchSound;
     }
 
     function loadSettings() {
         const savedSettings = localStorage.getItem('polarClockSettings');
         const defaultSettings = {
             is24HourFormat: false, labelDisplayMode: 'standard',
-            showDateLines: true, showTimeLines: true, useGradient: true, colorPreset: 'default'
+            showDateLines: true, showTimeLines: true, useGradient: true, colorPreset: 'default',
+            volume: 1.0, timerSound: 'bell01.mp3', alarmSound: 'bell01.mp3', stopwatchSound: 'Tick_Tock.wav'
         };
         settings = savedSettings ? { ...defaultSettings, ...JSON.parse(savedSettings) } : defaultSettings;
         
@@ -943,8 +950,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const isToday = alarm.days.length === 0 || alarm.days.includes(currentDay);
 
             if (isToday && alarmHour24 === currentHour && alarmMinute === currentMinute) {
-                if (!isToneStarted) { Tone.start(); isToneStarted = true; }
-                alarmSynth.triggerAttackRelease("C5", "8n");
+                playSound(alarm.sound, settings.volume);
                 
                 if (alarm.isTemporary) {
                     alarm.enabled = false;
@@ -1009,11 +1015,30 @@ document.addEventListener('DOMContentLoaded', function() {
         drawLabel({ radius: trackedAlarmRadius, lineWidth: 30, key: 'tracked', text: `${hoursLeft}h ${minutesLeft}m` });
     }
 
+    // --- AUDIO ---
+    function playSound(soundFile, volume) {
+        if (!soundFile) return;
+        const audio = new Audio(`assets/sounds/${soundFile}`);
+        audio.volume = volume;
+        audio.play().catch(e => console.error("Error playing sound:", e));
+        setTimeout(() => {
+            audio.pause();
+            audio.currentTime = 0;
+        }, 4000); // Stop after 4 seconds
+    }
 
     function startClock() {
         resizeCanvas();
         // Failsafe: only start the animation if the canvas has a measurable size.
         if (canvas.width > 0 && canvas.height > 0) {
+        const loadingOverlay = document.getElementById('loading-overlay');
+        if (loadingOverlay) {
+            // Fade out for a smoother transition
+            loadingOverlay.style.opacity = '0';
+            setTimeout(() => {
+                loadingOverlay.style.display = 'none';
+            }, 500); // Match timeout with transition duration
+        }
             animate(0);
         } else {
             // If the canvas is still size 0, wait for the next frame and try again.
@@ -1032,6 +1057,38 @@ document.addEventListener('DOMContentLoaded', function() {
             const clockId = parseInt(miniature.dataset.id);
             loadClockState(clockId);
         }
+    });
+
+    document.querySelectorAll('.preview-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const targetId = e.target.dataset.target;
+            const selectEl = document.getElementById(targetId);
+            if (selectEl) {
+                const soundFile = selectEl.value;
+                const volume = parseFloat(volumeControl.value);
+                playSound(soundFile, volume);
+            }
+        });
+    });
+
+    volumeControl.addEventListener('change', () => {
+        settings.volume = parseFloat(volumeControl.value);
+        saveSettings();
+    });
+
+    timerSound.addEventListener('change', () => {
+        settings.timerSound = timerSound.value;
+        saveSettings();
+    });
+
+    alarmSound.addEventListener('change', () => {
+        settings.alarmSound = alarmSound.value;
+        saveSettings();
+    });
+
+    stopwatchSound.addEventListener('change', () => {
+        settings.stopwatchSound = stopwatchSound.value;
+        saveSettings();
     });
 
     loadSettings();
