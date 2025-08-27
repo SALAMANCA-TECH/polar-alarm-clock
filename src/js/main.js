@@ -3,6 +3,9 @@ const canvas = document.getElementById('polarClockCanvas');
 const ctx = canvas.getContext('2d');
 const digitalTime = document.getElementById('digitalTime');
 const digitalDate = document.getElementById('digitalDate');
+const digitalDisplay = document.getElementById('digitalDisplay');
+const miniatureClocksContainer = document.getElementById('miniature-clocks-container');
+const activeClockName = document.getElementById('active-clock-name');
 // Views
 const mainView = document.getElementById('mainView');
 const settingsView = document.getElementById('settingsView');
@@ -12,6 +15,7 @@ const toolsView = document.getElementById('toolsView');
 const goToSettingsBtn = document.getElementById('goToSettingsBtn');
 const goToCustomizeBtn = document.getElementById('goToCustomizeBtn');
 const goToToolsBtn = document.getElementById('goToToolsBtn');
+const goToAlarmsBtn = document.getElementById('goToAlarmsBtn');
 const backToMainFromSettings = document.getElementById('backToMainFromSettings');
 const backToMainFromCustomize = document.getElementById('backToMainFromCustomize');
 const backToMainFromTools = document.getElementById('backToMainFromTools');
@@ -60,6 +64,9 @@ const dateLinesToggle = document.getElementById('dateLinesToggle');
 const timeLinesToggle = document.getElementById('timeLinesToggle');
 
 // --- GLOBAL STATE ---
+let savedClocks = [];
+const MAX_CLOCKS = 5;
+let activeClockId = null; // null means the main, unsaved clock is active
 let currentMode = 'clock'; // 'clock', 'stopwatch'
 let centerX, centerY, clockRadius;
 let secondsRadius, minutesRadius, hoursRadius, dayRadius, monthRadius, timerRadius, trackedAlarmRadius;
@@ -78,10 +85,9 @@ const animationState = {
 let lastNow = new Date();
 
 // Timer State
-let timerInterval = null;
 let timerTotalSeconds = 0;
 let timerRemainingSeconds = 0;
-let isTimerPaused = false;
+let isTimerRunning = false;
 let isIntervalMode = false;
 
 // --- NEW ADVANCED ALARM STATE ---
@@ -175,19 +181,119 @@ const drawLabel = (arc) => {
     ctx.fillText(arc.text, textX, textY);
 };
 
+function updateTimersAndStopwatches(deltaTime) {
+    const dtSeconds = deltaTime / 1000;
+
+    // --- Update Main Clock ---
+    if (isTimerRunning) {
+        timerRemainingSeconds -= dtSeconds;
+        if (timerRemainingSeconds <= 0) {
+            timerRemainingSeconds = 0;
+            alarmSynth.triggerAttackRelease("C5", "8n");
+            if (isIntervalMode) {
+                timerRemainingSeconds = timerTotalSeconds;
+            } else {
+                resetTimer();
+            }
+        }
+        const h = Math.floor(timerRemainingSeconds / 3600), m = Math.floor((timerRemainingSeconds % 3600) / 60), s = Math.floor(timerRemainingSeconds % 60);
+        timerHoursInput.value = h.toString().padStart(2, '0');
+        timerMinutesInput.value = m.toString().padStart(2, '0');
+        timerSecondsInput.value = s.toString().padStart(2, '0');
+    }
+    if (isStopwatchRunning) {
+        stopwatchElapsedTime += deltaTime;
+    }
+
+    // --- Update Saved Clocks in the background ---
+    savedClocks.forEach(clock => {
+        if (clock.timerState.isRunning) {
+            clock.timerState.remainingSeconds -= dtSeconds;
+            if (clock.timerState.remainingSeconds <= 0) {
+                clock.timerState.remainingSeconds = 0;
+                clock.timerState.isRunning = false;
+                // Optional: add sound/notification for background timers
+            }
+        }
+        if (clock.stopwatchState.isRunning) {
+            clock.stopwatchState.elapsedTime += deltaTime;
+        }
+    });
+}
+
+function drawMiniatureClock(clock, canvas) {
+    const miniCtx = canvas.getContext('2d');
+    const miniCenterX = canvas.width / 2;
+    const miniCenterY = canvas.height / 2;
+    const miniRadius = Math.min(miniCenterX, miniCenterY) * 0.8;
+    const lineWidth = 8;
+
+    miniCtx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (clock.timerState.totalSeconds > 0) { // It's a timer
+        const progress = Math.max(0, clock.timerState.remainingSeconds / clock.timerState.totalSeconds);
+        const startAngle = baseStartAngle;
+        const endAngle = baseStartAngle + progress * (Math.PI * 2);
+
+        // Background arc
+        miniCtx.beginPath();
+        miniCtx.arc(miniCenterX, miniCenterY, miniRadius, 0, Math.PI * 2);
+        miniCtx.strokeStyle = '#444';
+        miniCtx.lineWidth = lineWidth;
+        miniCtx.stroke();
+
+        // Progress arc
+        miniCtx.beginPath();
+        miniCtx.arc(miniCenterX, miniCenterY, miniRadius, startAngle, endAngle);
+        miniCtx.strokeStyle = '#FF8A80';
+        miniCtx.lineWidth = lineWidth;
+        miniCtx.stroke();
+
+    } else if (clock.mode === 'stopwatch') {
+        const time = new Date(clock.stopwatchState.elapsedTime);
+        const seconds = time.getUTCSeconds();
+        const milliseconds = time.getUTCMilliseconds();
+        const endAngle = baseStartAngle + ((seconds + milliseconds / 1000) / 60) * Math.PI * 2;
+
+        miniCtx.beginPath();
+        miniCtx.arc(miniCenterX, miniCenterY, miniRadius, baseStartAngle, endAngle);
+        miniCtx.strokeStyle = clock.settings.currentColors.seconds.light;
+        miniCtx.lineWidth = lineWidth;
+        miniCtx.stroke();
+
+        const minutes = time.getUTCMinutes().toString().padStart(2, '0');
+        const secs = seconds.toString().padStart(2, '0');
+        miniCtx.fillStyle = '#fff';
+        miniCtx.font = '16px Bahnschrift';
+        miniCtx.textAlign = 'center';
+        miniCtx.textBaseline = 'middle';
+        miniCtx.fillText(`${minutes}:${secs}`, miniCenterX, miniCenterY);
+    }
+}
+
 const animate = (timestamp) => {
     if (!lastTimestamp) lastTimestamp = timestamp;
     const deltaTime = timestamp - lastTimestamp;
     lastTimestamp = timestamp;
+
+    updateTimersAndStopwatches(deltaTime);
     
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     if (currentMode === 'stopwatch') {
         drawStopwatch();
-    } else {
+    } else { // Handles 'clock' and 'timer' modes
         drawClock(deltaTime);
     }
     
+    // Animate miniatures
+    const miniatureCanvases = miniatureClocksContainer.querySelectorAll('canvas');
+    savedClocks.forEach((clock, index) => {
+        if (miniatureCanvases[index]) {
+            drawMiniatureClock(clock, miniatureCanvases[index]);
+        }
+    });
+
     requestAnimationFrame(animate);
 };
 
@@ -338,6 +444,216 @@ const drawClock = (deltaTime) => {
     lastNow = now;
 };
 
+// --- MULTI-CLOCK MANAGEMENT ---
+
+function renderMiniatureClocks() {
+    miniatureClocksContainer.innerHTML = '';
+    savedClocks.forEach(clock => {
+        const miniature = document.createElement('div');
+        miniature.classList.add('miniature-clock');
+        miniature.dataset.id = clock.id;
+        miniature.style.cssText = `
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            position: relative;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #2a2a2a;
+            transition: transform 0.2s, border-color 0.2s;
+        `;
+        if (clock.id === activeClockId) {
+            miniature.style.borderColor = '#4CAF50';
+            miniature.style.transform = 'scale(1.1)';
+        }
+
+        const nameEl = document.createElement('div');
+        nameEl.classList.add('miniature-clock-name');
+        nameEl.textContent = clock.name;
+        nameEl.style.cssText = `
+            font-size: 12px;
+            color: #fff;
+            position: absolute;
+            bottom: -20px;
+            width: 100px;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            pointer-events: auto; /* Allow clicks on the name */
+        `;
+
+        nameEl.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent the click from selecting the clock
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = clock.name;
+            input.style.cssText = `
+                position: absolute;
+                bottom: -20px;
+                left: -10px;
+                width: 100px;
+                font-size: 12px;
+                text-align: center;
+                background-color: #333;
+                color: #fff;
+                border: 1px solid #4CAF50;
+                outline: none;
+            `;
+
+            const saveName = () => {
+                const newName = input.value.trim();
+                if (newName) {
+                    clock.name = newName;
+                    nameEl.textContent = newName;
+                    saveClocksToStorage();
+                    if (clock.id === activeClockId) {
+                        activeClockName.textContent = newName;
+                    }
+                }
+                miniature.removeChild(input);
+            };
+
+            input.addEventListener('blur', saveName);
+            input.addEventListener('keydown', (ev) => {
+                if (ev.key === 'Enter') {
+                    input.blur();
+                } else if (ev.key === 'Escape') {
+                    miniature.removeChild(input);
+                }
+            });
+
+            miniature.appendChild(input);
+            input.focus();
+            input.select();
+        });
+
+        const canvasEl = document.createElement('canvas');
+        canvasEl.width = 80;
+        canvasEl.height = 80;
+        miniature.appendChild(canvasEl);
+        miniature.appendChild(nameEl);
+
+        miniatureClocksContainer.appendChild(miniature);
+
+        // TODO: Logic to draw the miniature clock will be added in the animation step
+    });
+}
+
+function saveCurrentClock() {
+    if (savedClocks.length >= MAX_CLOCKS) {
+        alert(`You can only save up to ${MAX_CLOCKS} clocks.`);
+        return;
+    }
+
+    let modeToSave = currentMode;
+    if (currentMode === 'timer' && timerTotalSeconds === 0) {
+        modeToSave = 'clock';
+    }
+
+    const newClock = {
+        id: Date.now(),
+        name: `Clock ${savedClocks.length + 1}`,
+        mode: modeToSave,
+        timerState: {
+            totalSeconds: timerTotalSeconds,
+            remainingSeconds: timerRemainingSeconds,
+            isInterval: isIntervalMode,
+            isRunning: isTimerRunning,
+        },
+        stopwatchState: {
+            elapsedTime: stopwatchElapsedTime,
+            isRunning: isStopwatchRunning,
+            laps: [...lapTimes],
+            isInterval: isStopwatchIntervalEnabled,
+            intervalTime: stopwatchIntervalTime,
+        },
+        settings: { ...settings },
+    };
+
+    savedClocks.push(newClock);
+    saveClocksToStorage();
+    renderMiniatureClocks();
+    resetMainClockToDefault();
+}
+
+function loadClockState(clockId) {
+    const clockToLoad = savedClocks.find(c => c.id === clockId);
+    if (!clockToLoad) return;
+
+    activeClockId = clockId;
+    activeClockName.textContent = clockToLoad.name;
+
+    // Reset main clock first
+    resetTimer();
+    resetStopwatch();
+
+    // Load state
+    currentMode = clockToLoad.mode;
+
+    // Load timer state
+    timerTotalSeconds = clockToLoad.timerState.totalSeconds;
+    timerRemainingSeconds = clockToLoad.timerState.remainingSeconds;
+    isIntervalMode = clockToLoad.timerState.isInterval;
+    isTimerRunning = clockToLoad.timerState.isRunning;
+    const h = Math.floor(timerRemainingSeconds / 3600), m = Math.floor((timerRemainingSeconds % 3600) / 60), s = timerRemainingSeconds % 60;
+    timerHoursInput.value = h.toString().padStart(2, '0');
+    timerMinutesInput.value = m.toString().padStart(2, '0');
+    timerSecondsInput.value = s.toString().padStart(2, '0');
+
+    // Load stopwatch state
+    stopwatchElapsedTime = clockToLoad.stopwatchState.elapsedTime;
+    isStopwatchRunning = clockToLoad.stopwatchState.isRunning;
+    lapTimes = [...clockToLoad.stopwatchState.laps];
+    isStopwatchIntervalEnabled = clockToLoad.stopwatchState.isInterval;
+    stopwatchIntervalTime = clockToLoad.stopwatchState.intervalTime;
+    updateLapDisplay();
+
+    // Load settings
+    settings = { ...clockToLoad.settings };
+    applySettingsToUI();
+
+    // Show the correct panel if needed
+    if (clockToLoad.mode === 'timer') {
+        showView(toolsView);
+        showToolsPanel(timerPanel, timerTab);
+    } else if (clockToLoad.mode === 'stopwatch') {
+        showView(toolsView);
+        showToolsPanel(stopwatchPanel, stopwatchTab);
+    } else {
+        showView(mainView);
+    }
+
+    renderMiniatureClocks();
+}
+
+function resetMainClockToDefault() {
+    activeClockId = null;
+    activeClockName.textContent = '';
+    currentMode = 'clock';
+    resetTimer();
+    resetStopwatch();
+    loadSettings(); // Load global default settings
+    renderMiniatureClocks();
+}
+
+function saveClocksToStorage() {
+    localStorage.setItem('polarSavedClocks', JSON.stringify(savedClocks));
+}
+
+function loadClocksFromStorage() {
+    const storedClocks = localStorage.getItem('polarSavedClocks');
+    if (storedClocks) {
+        savedClocks = JSON.parse(storedClocks);
+        renderMiniatureClocks();
+    }
+}
+
+
 // --- STOPWATCH MODE ---
 const drawStopwatch = () => {
     if (isStopwatchRunning) {
@@ -399,8 +715,16 @@ function showToolsPanel(panelToShow, tabToActivate) {
     [timerPanel, alarmPanel, stopwatchPanel].forEach(p => p.style.display = 'none');
     panelToShow.style.display = 'flex';
     handleActiveButton(tabToActivate, [timerTab, alarmTab, stopwatchTab]);
-    currentMode = (panelToShow === stopwatchPanel) ? 'stopwatch' : 'clock';
-    if (currentMode === 'stopwatch') resetStopwatch(); // Reset on tab switch
+
+    if (panelToShow === stopwatchPanel) {
+        currentMode = 'stopwatch';
+        resetStopwatch();
+    } else if (panelToShow === timerPanel) {
+        currentMode = 'timer';
+        resetTimer();
+    } else {
+        currentMode = 'clock';
+    }
 }
 timerTab.addEventListener('click', () => showToolsPanel(timerPanel, timerTab));
 alarmTab.addEventListener('click', () => showToolsPanel(alarmPanel, alarmTab));
@@ -444,39 +768,35 @@ timeLinesToggle.addEventListener('change', (e) => { settings.showTimeLines = e.t
 // Timer Logic
 intervalToggle.addEventListener('change', (e) => isIntervalMode = e.target.checked);
 function startTimer() {
-    if (timerInterval) return;
+    if (isTimerRunning) return;
     if (!isToneStarted) { Tone.start(); isToneStarted = true; }
-    if (!isTimerPaused) {
+
+    // If starting from a paused state, don't reset the time
+    if (timerRemainingSeconds <= 0) {
         timerTotalSeconds = (parseInt(timerHoursInput.value) || 0) * 3600 + (parseInt(timerMinutesInput.value) || 0) * 60 + (parseInt(timerSecondsInput.value) || 0);
         timerRemainingSeconds = timerTotalSeconds;
     }
-    if (timerRemainingSeconds <= 0) { resetTimer(); return; };
-    isTimerPaused = false;
-    timerInterval = setInterval(tick, 1000);
+
+    if (timerRemainingSeconds <= 0) {
+        resetTimer();
+        return;
+    }
+
+    isTimerRunning = true;
+    lastTickTime = performance.now();
 }
-function pauseTimer() { clearInterval(timerInterval); timerInterval = null; isTimerPaused = true; }
+function pauseTimer() {
+    isTimerRunning = false;
+}
 function resetTimer() {
-    clearInterval(timerInterval);
-    timerInterval = null;
+    isTimerRunning = false;
     timerTotalSeconds = 0;
     timerRemainingSeconds = 0;
-    isTimerPaused = false;
     intervalToggle.checked = false;
     isIntervalMode = false;
     timerHoursInput.value = "0"; timerMinutesInput.value = "0"; timerSecondsInput.value = "0";
 }
-function tick() {
-    timerRemainingSeconds--;
-    const h = Math.floor(timerRemainingSeconds / 3600), m = Math.floor((timerRemainingSeconds % 3600) / 60), s = timerRemainingSeconds % 60;
-    timerHoursInput.value = h.toString().padStart(2, '0');
-    timerMinutesInput.value = m.toString().padStart(2, '0');
-    timerSecondsInput.value = s.toString().padStart(2, '0');
-    if (timerRemainingSeconds <= 0) {
-        alarmSynth.triggerAttackRelease("C5", "8n");
-        if (isIntervalMode) { timerRemainingSeconds = timerTotalSeconds; } 
-        else { resetTimer(); }
-    }
-}
+
 document.getElementById('startTimer').addEventListener('click', startTimer);
 document.getElementById('pauseTimer').addEventListener('click', pauseTimer);
 document.getElementById('resetTimer').addEventListener('click', resetTimer);
@@ -563,6 +883,16 @@ function saveSettings() {
     localStorage.setItem('polarClockSettings', JSON.stringify(settings));
 }
 
+function applySettingsToUI() {
+    // Apply loaded settings to the UI
+    setDisplayMode(settings.labelDisplayMode);
+    if (settings.is24HourFormat) format24Button.click(); else format12Button.click();
+    setColorPreset(settings.colorPreset || 'default');
+    gradientToggle.checked = settings.useGradient;
+    dateLinesToggle.checked = settings.showDateLines;
+    timeLinesToggle.checked = settings.showTimeLines;
+}
+
 function loadSettings() {
     const savedSettings = localStorage.getItem('polarClockSettings');
     const defaultSettings = {
@@ -571,13 +901,7 @@ function loadSettings() {
     };
     settings = savedSettings ? { ...defaultSettings, ...JSON.parse(savedSettings) } : defaultSettings;
     
-    // Apply loaded settings to the UI
-    setDisplayMode(settings.labelDisplayMode);
-    if (settings.is24HourFormat) format24Button.click(); else format12Button.click();
-    setColorPreset(settings.colorPreset || 'default');
-    gradientToggle.checked = settings.useGradient;
-    dateLinesToggle.checked = settings.showDateLines;
-    timeLinesToggle.checked = settings.showTimeLines;
+    applySettingsToUI();
 }
 
 // --- NEW ADVANCED ALARM LOGIC ---
@@ -698,6 +1022,18 @@ function startClock() {
 
 // --- INITIALIZATION ---
 window.addEventListener('resize', resizeCanvas);
+
+// Event Listeners
+digitalDisplay.addEventListener('click', saveCurrentClock);
+miniatureClocksContainer.addEventListener('click', (e) => {
+    const miniature = e.target.closest('.miniature-clock');
+    if (miniature) {
+        const clockId = parseInt(miniature.dataset.id);
+        loadClockState(clockId);
+    }
+});
+
 loadSettings();
 loadAdvancedAlarms(); // --- NEW: Load advanced alarms on start ---
+loadClocksFromStorage();
 requestAnimationFrame(startClock); // Start the clock safely
