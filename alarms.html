@@ -225,19 +225,6 @@
 
 
     <script>
-        // All JavaScript logic is now restored and fully functional
-        function playSound(soundFile, volume = 1.0) {
-            if (!soundFile) return;
-            // Assumes a global 'settings' object exists or a default volume is fine
-            const audio = new Audio(`../assets/sounds/${soundFile}`);
-            audio.volume = volume;
-            audio.play().catch(e => console.error("Error playing sound:", e));
-            setTimeout(() => {
-                audio.pause();
-                audio.currentTime = 0;
-            }, 4000); // Stop after 4 seconds
-        }
-
         document.addEventListener('DOMContentLoaded', () => {
             // --- 1. STATE MANAGEMENT & CONSTANTS ---
             let alarms = [];
@@ -346,64 +333,70 @@
                     </div>
                 </div>`;
 
-            // --- 2. DOM Element Selections ---
-            const mainContent = document.getElementById('mainContent');
-            const currentTimeEl = document.getElementById('currentTime');
-            const currentDateEl = document.getElementById('currentDate');
-            const addAlarmBtn = document.getElementById('addAlarmBtn');
-            const manageGroupsBtn = document.getElementById('manageGroupsBtn');
-            const alarmListEl = document.getElementById('alarmList');
-            const noAlarmsView = document.getElementById('noAlarmsView');
-            const noAlarmsSubtext = document.getElementById('noAlarmsSubtext');
-            const sortAlarmsEl = document.getElementById('sortAlarms');
-            
-            // Modals
-            const alarmModal = document.getElementById('alarmModal');
-            const tempAlarmModal = document.getElementById('tempAlarmModal');
-            const batchConfirmModal = document.getElementById('batchConfirmModal');
-            const batchDeleteConfirmModal = document.getElementById('batchDeleteConfirmModal');
-            const manageGroupsModal = document.getElementById('manageGroupsModal');
-            const applyGroupDefaultsModal = document.getElementById('applyGroupDefaultsModal');
-            
-            // Header Actions
-            const headerActions = document.getElementById('headerActions');
-            const batchEditActions = document.getElementById('batchEditActions');
-            const batchEditBtn = document.getElementById('batchEditBtn');
-            const cancelBatchEditBtn = document.getElementById('cancelBatchEditBtn');
-            const confirmBatchEditBtn = document.getElementById('confirmBatchEditBtn');
-            const batchDeleteBtn = document.getElementById('batchDeleteBtn');
-            const selectionCount = document.getElementById('selectionCount');
-            
-            // Settings Bar Elements
-            const timeFormatToggle = document.getElementById('timeFormatToggle');
-            const frequencyToggle = document.getElementById('frequencyToggle');
-            const unorganizedToggle = document.getElementById('unorganizedToggle');
-            const alarmPaletteSelector = document.getElementById('alarmPaletteSelector');
-            const searchBar = document.getElementById('searchBar');
-            
-            // Temp Alarm Modal Buttons
-            const goBackBtn = document.getElementById('goBackBtn');
-            const oneTimeBtn = document.getElementById('oneTimeBtn');
-            const keepFinishedBtn = document.getElementById('keepFinishedBtn');
-            
-            // Batch Confirm Modals
-            const batchChangesList = document.getElementById('batchChangesList');
-            const returnToEditingBtn = document.getElementById('returnToEditingBtn');
-            const confirmBatchChangesBtn = document.getElementById('confirmBatchChangesBtn');
-            const batchDeleteText = document.getElementById('batchDeleteText');
-            const cancelBatchDeleteBtn = document.getElementById('cancelBatchDeleteBtn');
-            const confirmBatchDeleteBtn = document.getElementById('confirmBatchDeleteBtn');
-            
-            // Manage Groups Modal Elements
-            const groupListContainer = document.getElementById('groupListContainer');
-            const groupsList = document.getElementById('groupsList');
-            const showCreateGroupBtn = document.getElementById('showCreateGroupBtn');
-            const groupEditContainer = document.getElementById('groupEditContainer');
-            const closeGroupsModalBtn = document.getElementById('closeGroupsModalBtn');
-            
-            // Apply Defaults Modal Buttons
-            const applyDefaultsBtn = document.getElementById('applyDefaultsBtn');
-            const dontApplyDefaultsBtn = document.getElementById('dontApplyDefaultsBtn');
+            // --- 2. DOM Element Selections (REFACTORED) ---
+            const elements = {
+                mainContent: document.getElementById('mainContent'),
+                currentTime: document.getElementById('currentTime'),
+                currentDate: document.getElementById('currentDate'),
+                alarmList: document.getElementById('alarmList'),
+                noAlarmsView: document.getElementById('noAlarmsView'),
+                noAlarmsSubtext: document.getElementById('noAlarmsSubtext'),
+                header: {
+                    actions: document.getElementById('headerActions'),
+                    addAlarmBtn: document.getElementById('addAlarmBtn'),
+                    manageGroupsBtn: document.getElementById('manageGroupsBtn'),
+                    batchEditBtn: document.getElementById('batchEditBtn'),
+                },
+                batch: {
+                    actions: document.getElementById('batchEditActions'),
+                    cancelBtn: document.getElementById('cancelBatchEditBtn'),
+                    confirmBtn: document.getElementById('confirmBatchEditBtn'),
+                    deleteBtn: document.getElementById('batchDeleteBtn'),
+                    selectionCount: document.getElementById('selectionCount'),
+                },
+                settingsBar: {
+                    timeFormatToggle: document.getElementById('timeFormatToggle'),
+                    frequencyToggle: document.getElementById('frequencyToggle'),
+                    unorganizedToggle: document.getElementById('unorganizedToggle'),
+                    paletteSelector: document.getElementById('alarmPaletteSelector'),
+                    searchBar: document.getElementById('searchBar'),
+                    sortAlarms: document.getElementById('sortAlarms'),
+                },
+                modals: {
+                    alarm: document.getElementById('alarmModal'),
+                    temporaryConfirm: document.getElementById('tempAlarmModal'),
+                    batchConfirm: document.getElementById('batchConfirmModal'),
+                    batchDeleteConfirm: document.getElementById('batchDeleteConfirmModal'),
+                    manageGroups: document.getElementById('manageGroupsModal'),
+                    applyGroupDefaults: document.getElementById('applyGroupDefaultsModal'),
+                },
+                tempConfirm: {
+                    goBackBtn: document.getElementById('goBackBtn'),
+                    oneTimeBtn: document.getElementById('oneTimeBtn'),
+                    keepFinishedBtn: document.getElementById('keepFinishedBtn'),
+                },
+                batchConfirm: {
+                    list: document.getElementById('batchChangesList'),
+                    returnBtn: document.getElementById('returnToEditingBtn'),
+                    confirmBtn: document.getElementById('confirmBatchChangesBtn'),
+                },
+                batchDelete: {
+                    text: document.getElementById('batchDeleteText'),
+                    cancelBtn: document.getElementById('cancelBatchDeleteBtn'),
+                    confirmBtn: document.getElementById('confirmBatchDeleteBtn'),
+                },
+                groups: {
+                    container: document.getElementById('groupListContainer'),
+                    list: document.getElementById('groupsList'),
+                    showCreateBtn: document.getElementById('showCreateGroupBtn'),
+                    editContainer: document.getElementById('groupEditContainer'),
+                    closeBtn: document.getElementById('closeGroupsModalBtn'),
+                },
+                applyDefaults: {
+                    applyBtn: document.getElementById('applyDefaultsBtn'),
+                    dontApplyBtn: document.getElementById('dontApplyDefaultsBtn'),
+                }
+            };
 
 
             // --- 3. LOCALSTORAGE FUNCTIONS ---
@@ -423,19 +416,69 @@
 
             // --- 4. CORE FUNCTIONS ---
             function applySettings() {
-                timeFormatToggle.checked = settings.timeFormat === '24h';
-                frequencyToggle.checked = settings.frequencyDisplay === 'except';
-                unorganizedToggle.checked = settings.showOnlyUnorganized;
-                alarmPaletteSelector.value = settings.alarmPalette;
-                searchBar.value = settings.searchQuery;
-                sortAlarmsEl.value = settings.sortOrder;
+                elements.settingsBar.timeFormatToggle.checked = settings.timeFormat === '24h';
+                elements.settingsBar.frequencyToggle.checked = settings.frequencyDisplay === 'except';
+                elements.settingsBar.unorganizedToggle.checked = settings.showOnlyUnorganized;
+                elements.settingsBar.paletteSelector.value = settings.alarmPalette;
+                elements.settingsBar.searchBar.value = settings.searchQuery;
+                elements.settingsBar.sortAlarms.value = settings.sortOrder;
                 updateClock();
                 renderAlarms();
+            }
+
+            /**
+             * Creates the HTML string for a single alarm card.
+             * This separates the HTML generation from the rendering logic.
+             * @param {object} alarm - The alarm object to create a card for.
+             * @returns {string} The HTML string for the alarm card.
+             */
+            function createAlarmCardHTML(alarm) {
+                const timeData = formatTime(alarm.hour, alarm.minute, alarm.ampm);
+                const daysStr = getDaysString(alarm.days);
+                const groupStr = alarm.group ? `<span class="bg-slate-700 text-xs px-2 py-1 rounded-full">${alarm.group}</span>` : '';
+                const descriptionStr = alarm.description ? `<p class="text-muted text-sm mt-2 italic truncate">${alarm.description}</p>` : '';
+                const temporaryStr = alarm.isTemporary ? `<p class="text-red-400 font-bold text-sm mt-1">Temporary</p>` : `<p class="text-muted text-sm mt-1">${daysStr}</p>`;
+
+                return `
+                    <div class="absolute left-0 top-0 bottom-0 w-3 ${alarm.color || 'bg-transparent'}"></div>
+                    <div class="absolute right-0 top-0 bottom-0 w-3 ${alarm.color || 'bg-transparent'}"></div>
+                    <div class="px-5 flex-grow">
+                        <div class="flex justify-between items-start">
+                            <p class="text-4xl font-mono time-display">${timeData.time} <span class="text-2xl">${timeData.ampm}</span></p>
+                            <div class="text-right space-y-1">
+                                <p class="text-sm font-semibold">${alarm.label || 'Alarm'}</p>
+                                ${groupStr}
+                            </div>
+                        </div>
+                        <div>
+                            ${temporaryStr}
+                            ${descriptionStr}
+                        </div>
+                    </div>
+                    <div class="px-5 flex items-center justify-between mt-4">
+                        <div class="flex items-center gap-2">
+                            <label for="track-${alarm.id}" class="text-sm font-medium">Track</label>
+                            <div class="relative inline-block w-12 align-middle select-none transition duration-200 ease-in z-10">
+                                <input type="checkbox" data-action="track" id="track-${alarm.id}" class="toggle-checkbox absolute block w-7 h-7 rounded-full bg-white border-4 appearance-none cursor-pointer" ${alarm.isTracked ? 'checked' : ''} ${!alarm.enabled ? 'disabled' : ''}/>
+                                <label for="track-${alarm.id}" class="toggle-label block overflow-hidden h-7 rounded-full bg-slate-600 cursor-pointer"></label>
+                            </div>
+                        </div>
+                        <button data-action="edit" class="p-2 rounded-full hover:bg-slate-700 transition-colors"><i class="ph-pencil-simple text-xl"></i></button>
+                         <div class="flex items-center gap-2">
+                            <label for="toggle-${alarm.id}" class="text-sm font-medium">Enable</label>
+                            <div class="relative inline-block w-12 align-middle select-none transition duration-200 ease-in z-10">
+                                <input type="checkbox" data-action="toggle" id="toggle-${alarm.id}" class="toggle-checkbox absolute block w-7 h-7 rounded-full bg-white border-4 appearance-none cursor-pointer" ${alarm.enabled ? 'checked' : ''}/>
+                                <label for="toggle-${alarm.id}" class="toggle-label block overflow-hidden h-7 rounded-full bg-slate-600 cursor-pointer"></label>
+                            </div>
+                        </div>
+                    </div>
+                `;
             }
 
             function renderAlarms() {
                 let alarmsToRender = [...alarms];
 
+                // Filter alarms based on settings
                 if (settings.showOnlyUnorganized) {
                     alarmsToRender = alarmsToRender.filter(a => !a.group && !a.color);
                 }
@@ -455,67 +498,37 @@
                     });
                 }
 
-                alarmListEl.innerHTML = '';
+                // Clear the current list
+                elements.alarmList.innerHTML = '';
+                
+                // Toggle visibility of the list vs. the "no alarms" message
                 const hasResults = alarmsToRender.length > 0;
-                noAlarmsView.style.display = hasResults ? 'none' : 'block';
-                alarmListEl.style.display = hasResults ? 'grid' : 'none';
+                elements.noAlarmsView.style.display = hasResults ? 'none' : 'block';
+                elements.alarmList.style.display = hasResults ? 'grid' : 'none';
                 
                 if (!hasResults && (settings.searchQuery || settings.showOnlyUnorganized)) {
-                    noAlarmsSubtext.textContent = "No alarms match your current filters.";
+                    elements.noAlarmsSubtext.textContent = "No alarms match your current filters.";
                 } else if (alarms.length === 0) {
-                    noAlarmsSubtext.textContent = 'Click "Add Alarm" to get started.';
+                    elements.noAlarmsSubtext.textContent = 'Click "Add Alarm" to get started.';
                 }
 
-
+                // Sort the alarms to be rendered
                 sortAlarms(alarmsToRender);
 
+                // Loop through alarms and use the new function to create and append cards
                 alarmsToRender.forEach(alarm => {
                     const alarmDiv = document.createElement('div');
                     const isSelected = selectedAlarmIds.includes(alarm.id);
+                    
+                    // Set classes and data attributes on the container element
                     alarmDiv.className = `alarm-card card-bg rounded-2xl p-4 flex flex-col justify-between shadow-lg transition-all relative overflow-hidden border-2 ${isSelected ? 'border-blue-400' : 'border-transparent'} ${!alarm.enabled ? 'opacity-60' : ''}`;
                     alarmDiv.dataset.id = alarm.id;
                     
-                    const timeData = formatTime(alarm.hour, alarm.minute, alarm.ampm);
-                    const daysStr = getDaysString(alarm.days);
-                    const groupStr = alarm.group ? `<span class="bg-slate-700 text-xs px-2 py-1 rounded-full">${alarm.group}</span>` : '';
-                    const descriptionStr = alarm.description ? `<p class="text-muted text-sm mt-2 italic truncate">${alarm.description}</p>` : '';
-                    const temporaryStr = alarm.isTemporary ? `<p class="text-red-400 font-bold text-sm mt-1">Temporary</p>` : `<p class="text-muted text-sm mt-1">${daysStr}</p>`;
+                    // Use the new function to generate the inner HTML
+                    alarmDiv.innerHTML = createAlarmCardHTML(alarm);
 
-                    alarmDiv.innerHTML = `
-                        <div class="absolute left-0 top-0 bottom-0 w-3 ${alarm.color || 'bg-transparent'}"></div>
-                        <div class="absolute right-0 top-0 bottom-0 w-3 ${alarm.color || 'bg-transparent'}"></div>
-                        <div class="px-5 flex-grow">
-                            <div class="flex justify-between items-start">
-                                <p class="text-4xl font-mono time-display">${timeData.time} <span class="text-2xl">${timeData.ampm}</span></p>
-                                <div class="text-right space-y-1">
-                                    <p class="text-sm font-semibold">${alarm.label || 'Alarm'}</p>
-                                    ${groupStr}
-                                </div>
-                            </div>
-                            <div>
-                                ${temporaryStr}
-                                ${descriptionStr}
-                            </div>
-                        </div>
-                        <div class="px-5 flex items-center justify-between mt-4">
-                            <div class="flex items-center gap-2">
-                                <label for="track-${alarm.id}" class="text-sm font-medium">Track</label>
-                                <div class="relative inline-block w-12 align-middle select-none transition duration-200 ease-in z-10">
-                                    <input type="checkbox" data-action="track" id="track-${alarm.id}" class="toggle-checkbox absolute block w-7 h-7 rounded-full bg-white border-4 appearance-none cursor-pointer" ${alarm.isTracked ? 'checked' : ''} ${!alarm.enabled ? 'disabled' : ''}/>
-                                    <label for="track-${alarm.id}" class="toggle-label block overflow-hidden h-7 rounded-full bg-slate-600 cursor-pointer"></label>
-                                </div>
-                            </div>
-                            <button data-action="edit" class="p-2 rounded-full hover:bg-slate-700 transition-colors"><i class="ph-pencil-simple text-xl"></i></button>
-                             <div class="flex items-center gap-2">
-                                <label for="toggle-${alarm.id}" class="text-sm font-medium">Enable</label>
-                                <div class="relative inline-block w-12 align-middle select-none transition duration-200 ease-in z-10">
-                                    <input type="checkbox" data-action="toggle" id="toggle-${alarm.id}" class="toggle-checkbox absolute block w-7 h-7 rounded-full bg-white border-4 appearance-none cursor-pointer" ${alarm.enabled ? 'checked' : ''}/>
-                                    <label for="toggle-${alarm.id}" class="toggle-label block overflow-hidden h-7 rounded-full bg-slate-600 cursor-pointer"></label>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                    alarmListEl.appendChild(alarmDiv);
+                    // Append the fully constructed element to the list
+                    elements.alarmList.appendChild(alarmDiv);
                 });
             }
             
@@ -534,7 +547,7 @@
             }
 
             function handleSaveAttempt() {
-                const alarmModalInstance = document.getElementById('alarmModal');
+                const alarmModalInstance = elements.modals.alarm;
                 if (isBatchEditMode) {
                     showBatchConfirmModal(alarmModalInstance);
                     return;
@@ -571,8 +584,8 @@
                 };
                 
                 if (selectedDays.length === 0 && !editingAlarmId) {
-                    showModal(tempAlarmModal);
-                    mainContent.classList.add('backdrop-blur-sm');
+                    showModal(elements.modals.temporaryConfirm);
+                    elements.mainContent.classList.add('backdrop-blur-sm');
                 } else {
                     finalizeSave(false);
                 }
@@ -585,6 +598,7 @@
                     enabled: true,
                     isTracked: false,
                     isTemporary: isTemporary,
+                    createdAt: editingAlarmId ? alarms.find(a => a.id === editingAlarmId).createdAt : new Date().toISOString() // Preserve original creation date on edit
                 };
 
                 if (editingAlarmId) {
@@ -599,9 +613,9 @@
                 
                 saveStateToStorage();
                 renderAlarms();
-                hideModal(alarmModal);
-                hideModal(tempAlarmModal);
-                mainContent.classList.remove('backdrop-blur-sm');
+                hideModal(elements.modals.alarm);
+                hideModal(elements.modals.temporaryConfirm);
+                elements.mainContent.classList.remove('backdrop-blur-sm');
                 tempAlarmData = null;
             }
 
@@ -610,14 +624,17 @@
                 alarms = alarms.filter(alarm => alarm.id !== editingAlarmId);
                 saveStateToStorage();
                 renderAlarms();
-                hideModal(alarmModal);
+                hideModal(elements.modals.alarm);
             }
 
             // --- 5. UTILITY FUNCTIONS (SORTING, TIME) ---
             function sortAlarms(alarmArray) {
                 alarmArray.sort((a, b) => {
                     switch (settings.sortOrder) {
-                        case 'creation_desc': return b.id - a.id;
+                        case 'creation_desc': 
+                            const dateA = a.createdAt ? new Date(a.createdAt) : 0;
+                            const dateB = b.createdAt ? new Date(b.createdAt) : 0;
+                            return dateB - dateA;
                         case 'time':
                             const timeA = convertTo24Hour(a.hour, a.ampm) * 60 + parseInt(a.minute);
                             const timeB = convertTo24Hour(b.hour, b.ampm) * 60 + parseInt(b.minute);
@@ -658,11 +675,22 @@
                     timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
                 }
                 const dateString = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-                currentTimeEl.textContent = timeString;
-                currentDateEl.textContent = dateString;
+                elements.currentTime.textContent = timeString;
+                elements.currentDate.textContent = dateString;
             }
 
             // --- 7. Modal Control & UI Updates ---
+            function playSound(soundFile, volume = 1.0) {
+                if (!soundFile) return;
+                const audio = new Audio(\assets/sounds/${soundFile}`);
+                audio.volume = volume;
+                audio.play().catch(e => console.error("Error playing sound:", e));
+                setTimeout(() => {
+                    audio.pause();
+                    audio.currentTime = 0;
+                }, 4000); // Stop after 4 seconds
+            }
+
             function updateCharCount(input, countEl) {
                 countEl.textContent = `${input.value.length}/${input.maxLength}`;
             }
@@ -685,56 +713,37 @@
             function showModal(modalEl) { modalEl.classList.remove('hidden'); }
             function hideModal(modalEl) { modalEl.classList.add('hidden'); }
 
-            function showAlarmModal(mode = 'add', alarm = null) {
-                alarmModal.innerHTML = ALARM_MODAL_TEMPLATE;
-                
-                const modalHour = alarmModal.querySelector('#modalHour');
-                const modalMinute = alarmModal.querySelector('#modalMinute');
-                const modalAmPmContainer = alarmModal.querySelector('#modalAmPmContainer');
-                const modalAmPm = alarmModal.querySelector('#modalAmPm');
-                const daySelector = alarmModal.querySelector('#daySelector');
-                const alarmLabel = alarmModal.querySelector('#alarmLabel');
-                const alarmGroupSelect = alarmModal.querySelector('#alarmGroupSelect');
-                const newGroupContainer = alarmModal.querySelector('#newGroupContainer');
-                const newGroupInput = alarmModal.querySelector('#newGroupInput');
-                const confirmNewGroupBtn = alarmModal.querySelector('#confirmNewGroupBtn');
-                const cancelNewGroupBtn = alarmModal.querySelector('#cancelNewGroupBtn');
-                const alarmDescription = alarmModal.querySelector('#alarmDescription');
-                const colorSelector = alarmModal.querySelector('#colorSelector');
-                const labelCharCount = alarmModal.querySelector('#labelCharCount');
-                const descriptionCharCount = alarmModal.querySelector('#descriptionCharCount');
-                const cancelBtn = alarmModal.querySelector('#cancelBtn');
-                const saveBtn = alarmModal.querySelector('#saveBtn');
-                const deleteAlarmBtn = alarmModal.querySelector('#deleteAlarmBtn');
-                const soundSelector = alarmModal.querySelector('#soundSelector');
-                const previewSoundBtn = alarmModal.querySelector('#previewAlarmSound');
-                
-                previewSoundBtn.addEventListener('click', () => {
-                    const soundFile = soundSelector.value;
-                    // The alarms page doesn't have a volume control, so we'll use a default
-                    playSound(soundFile, 1.0);
-                });
+            /**
+             * Populates the alarm modal form with data.
+             * @param {HTMLElement} modalInstance - The modal's root element.
+             * @param {string} mode - 'add', 'edit', or 'batch'.
+             * @param {object|null} alarm - The alarm data for 'edit' mode.
+             */
+            function populateAlarmModal(modalInstance, mode, alarm) {
+                const modalHour = modalInstance.querySelector('#modalHour');
+                const modalMinute = modalInstance.querySelector('#modalMinute');
+                const modalAmPm = modalInstance.querySelector('#modalAmPm');
+                const daySelector = modalInstance.querySelector('#daySelector');
+                const alarmLabel = modalInstance.querySelector('#alarmLabel');
+                const alarmGroupSelect = modalInstance.querySelector('#alarmGroupSelect');
+                const alarmDescription = modalInstance.querySelector('#alarmDescription');
+                const colorSelector = modalInstance.querySelector('#colorSelector');
+                const soundSelector = modalInstance.querySelector('#soundSelector');
+                const labelCharCount = modalInstance.querySelector('#labelCharCount');
+                const descriptionCharCount = modalInstance.querySelector('#descriptionCharCount');
 
                 populateColorPicker(colorSelector);
                 
-                const is24h = settings.timeFormat === '24h';
-                modalAmPmContainer.style.display = is24h ? 'none' : 'block';
-                modalHour.max = is24h ? '23' : '12';
-                modalHour.min = is24h ? '0' : '1';
-
-                newGroupContainer.classList.add('hidden');
-                newGroupInput.value = '';
-                
                 if (mode === 'add' || mode === 'batch') {
-                    editingAlarmId = null;
-                    alarmModal.querySelector('#modalTitle').textContent = mode === 'batch' ? 'Batch Editing' : 'Add Alarm';
-                    deleteAlarmBtn.classList.add('hidden');
+                    modalInstance.querySelector('#modalTitle').textContent = mode === 'batch' ? 'Batch Editing' : 'Add Alarm';
+                    modalInstance.querySelector('#deleteAlarmBtn').classList.add('hidden');
                     populateGroupDropdown(alarmGroupSelect);
                 } else { // edit mode
                     editingAlarmId = alarm.id;
-                    alarmModal.querySelector('#modalTitle').textContent = 'Edit Alarm';
-                    deleteAlarmBtn.classList.remove('hidden');
+                    modalInstance.querySelector('#modalTitle').textContent = 'Edit Alarm';
+                    modalInstance.querySelector('#deleteAlarmBtn').classList.remove('hidden');
                     
+                    const is24h = settings.timeFormat === '24h';
                     if (is24h) {
                         modalHour.value = convertTo24Hour(alarm.hour, alarm.ampm).toString().padStart(2, '0');
                     } else {
@@ -744,7 +753,7 @@
                     modalAmPm.value = alarm.ampm;
                     alarmLabel.value = alarm.label;
                     alarmDescription.value = alarm.description || '';
-                    soundSelector.value = alarm.sound || 'default';
+                    soundSelector.value = alarm.sound || 'bell01.mp3';
                     if(alarm.days) alarm.days.forEach(day => daySelector.querySelector(`[data-day="${day}"]`).classList.add('active'));
                     const currentSwatch = colorSelector.querySelector(`[data-color="${alarm.color}"]`);
                     if (currentSwatch) currentSwatch.classList.add('selected');
@@ -752,11 +761,32 @@
                 }
                 updateCharCount(alarmLabel, labelCharCount);
                 updateCharCount(alarmDescription, descriptionCharCount);
+            }
+
+            /**
+             * Sets up all event listeners for the alarm modal.
+             * @param {HTMLElement} modalInstance - The modal's root element.
+             */
+            function setupAlarmModalEventListeners(modalInstance) {
+                const daySelector = modalInstance.querySelector('#daySelector');
+                const colorSelector = modalInstance.querySelector('#colorSelector');
+                const alarmGroupSelect = modalInstance.querySelector('#alarmGroupSelect');
+                const newGroupContainer = modalInstance.querySelector('#newGroupContainer');
+                const newGroupInput = modalInstance.querySelector('#newGroupInput');
+                const confirmNewGroupBtn = modalInstance.querySelector('#confirmNewGroupBtn');
+                const cancelNewGroupBtn = modalInstance.querySelector('#cancelNewGroupBtn');
+                const alarmLabel = modalInstance.querySelector('#alarmLabel');
+                const alarmDescription = modalInstance.querySelector('#alarmDescription');
+                const soundSelector = modalInstance.querySelector('#soundSelector');
+                const previewSoundBtn = modalInstance.querySelector('#previewAlarmSound');
+
+                modalInstance.querySelector('#cancelBtn').addEventListener('click', () => hideModal(elements.modals.alarm));
+                modalInstance.querySelector('#saveBtn').addEventListener('click', handleSaveAttempt);
+                modalInstance.querySelector('#deleteAlarmBtn').addEventListener('click', deleteAlarm);
                 
-                cancelBtn.addEventListener('click', () => hideModal(alarmModal));
-                saveBtn.addEventListener('click', handleSaveAttempt);
-                deleteAlarmBtn.addEventListener('click', deleteAlarm);
+                previewSoundBtn.addEventListener('click', () => playSound(soundSelector.value, 1.0));
                 daySelector.addEventListener('click', (e) => { if (e.target.classList.contains('day-btn')) e.target.classList.toggle('active'); });
+                
                 colorSelector.addEventListener('click', (e) => {
                     const swatch = e.target.closest('.color-swatch');
                     if (swatch) {
@@ -768,14 +798,16 @@
                         }
                     }
                 });
+
                 alarmGroupSelect.addEventListener('change', () => {
                     newGroupContainer.classList.toggle('hidden', alarmGroupSelect.value !== 'new_group');
                     if (alarmGroupSelect.value === 'new_group') newGroupInput.focus();
                     const selectedGroup = groups.find(g => g.name === alarmGroupSelect.value);
                     if (selectedGroup && selectedGroup.defaults && Object.keys(selectedGroup.defaults).length > 0) {
-                        showModal(applyGroupDefaultsModal);
+                        showModal(elements.modals.applyGroupDefaults);
                     }
                 });
+
                 confirmNewGroupBtn.addEventListener('click', () => confirmNewGroup(alarmGroupSelect, newGroupContainer, newGroupInput));
                 cancelNewGroupBtn.addEventListener('click', () => {
                     newGroupContainer.classList.add('hidden');
@@ -785,10 +817,29 @@
                 newGroupInput.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') confirmNewGroup(alarmGroupSelect, newGroupContainer, newGroupInput);
                 });
-                alarmLabel.addEventListener('input', () => updateCharCount(alarmLabel, labelCharCount));
-                alarmDescription.addEventListener('input', () => updateCharCount(alarmDescription, descriptionCharCount));
 
-                showModal(alarmModal);
+                alarmLabel.addEventListener('input', () => updateCharCount(alarmLabel, modalInstance.querySelector('#labelCharCount')));
+                alarmDescription.addEventListener('input', () => updateCharCount(alarmDescription, modalInstance.querySelector('#descriptionCharCount')));
+            }
+
+            function showAlarmModal(mode = 'add', alarm = null) {
+                // Step 1: Create the modal's HTML content
+                elements.modals.alarm.innerHTML = ALARM_MODAL_TEMPLATE;
+                
+                // Step 2: Configure time inputs based on global settings
+                const is24h = settings.timeFormat === '24h';
+                elements.modals.alarm.querySelector('#modalAmPmContainer').style.display = is24h ? 'none' : 'block';
+                elements.modals.alarm.querySelector('#modalHour').max = is24h ? '23' : '12';
+                elements.modals.alarm.querySelector('#modalHour').min = is24h ? '0' : '1';
+                
+                // Step 3: Populate the form with data
+                populateAlarmModal(elements.modals.alarm, mode, alarm);
+
+                // Step 4: Attach all event listeners to the new elements
+                setupAlarmModalEventListeners(elements.modals.alarm);
+
+                // Step 5: Finally, show the modal
+                showModal(elements.modals.alarm);
             }
             
             function confirmNewGroup(selectEl, containerEl, inputEl) {
@@ -813,9 +864,9 @@
             // --- 8. BATCH EDIT FUNCTIONS ---
             function toggleBatchEditMode(active) {
                 isBatchEditMode = active;
-                headerActions.classList.toggle('hidden', active);
-                batchEditActions.classList.toggle('hidden', !active);
-                alarmListEl.classList.toggle('batch-select-active', active);
+                elements.header.actions.classList.toggle('hidden', active);
+                elements.batch.actions.classList.toggle('hidden', !active);
+                elements.alarmList.classList.toggle('batch-select-active', active);
                 if (!active) {
                     selectedAlarmIds = [];
                     renderAlarms();
@@ -824,7 +875,7 @@
             }
 
             function updateSelectionCount() {
-                selectionCount.textContent = `${selectedAlarmIds.length} selected`;
+                elements.batch.selectionCount.textContent = `${selectedAlarmIds.length} selected`;
             }
 
             function showBatchConfirmModal(modalInstance) {
@@ -835,18 +886,18 @@
                 if (modalInstance.querySelector('#alarmGroupSelect').value) batchChanges.group = modalInstance.querySelector('#alarmGroupSelect').value === 'new_group' ? modalInstance.querySelector('#newGroupInput').value : modalInstance.querySelector('#alarmGroupSelect').value;
                 if (modalInstance.querySelector('#alarmDescription').value) batchChanges.description = modalInstance.querySelector('#alarmDescription').value;
                 if (modalInstance.querySelector('#colorSelector .selected')) batchChanges.color = true;
-                if (modalInstance.querySelector('#soundSelector').value !== 'default') batchChanges.sound = modalInstance.querySelector('#soundSelector').value;
+                if (modalInstance.querySelector('#soundSelector').value !== 'bell01.mp3') batchChanges.sound = modalInstance.querySelector('#soundSelector').value;
 
-                batchChangesList.innerHTML = Object.keys(batchChanges).map(key => `<li>Changing: <span class="font-semibold capitalize">${key}</span></li>`).join('');
-                confirmBatchChangesBtn.textContent = `Confirm changes to ${selectedAlarmIds.length} alarms`;
+                elements.batchConfirm.list.innerHTML = Object.keys(batchChanges).map(key => `<li>Changing: <span class="font-semibold capitalize">${key}</span></li>`).join('');
+                elements.batchConfirm.confirmBtn.textContent = `Confirm changes to ${selectedAlarmIds.length} alarms`;
 
-                hideModal(alarmModal);
-                showModal(batchConfirmModal);
-                mainContent.classList.add('backdrop-blur-sm');
+                hideModal(elements.modals.alarm);
+                showModal(elements.modals.batchConfirm);
+                elements.mainContent.classList.add('backdrop-blur-sm');
             }
             
             function applyBatchChanges() {
-                const modalInstance = document.getElementById('alarmModal');
+                const modalInstance = elements.modals.alarm;
                 alarms.forEach(alarm => {
                     if (selectedAlarmIds.includes(alarm.id)) {
                         if (batchChanges.time) {
@@ -873,32 +924,32 @@
                 
                 saveStateToStorage();
                 toggleBatchEditMode(false);
-                hideModal(batchConfirmModal);
-                mainContent.classList.remove('backdrop-blur-sm');
+                hideModal(elements.modals.batchConfirm);
+                elements.mainContent.classList.remove('backdrop-blur-sm');
                 renderAlarms();
             }
             
             function showBatchDeleteModal() {
                 if (selectedAlarmIds.length === 0) return;
-                batchDeleteText.textContent = `Are you sure you want to delete these ${selectedAlarmIds.length} alarms? This action cannot be undone.`;
-                showModal(batchDeleteConfirmModal);
-                mainContent.classList.add('backdrop-blur-sm');
+                elements.batchDelete.text.textContent = `Are you sure you want to delete these ${selectedAlarmIds.length} alarms? This action cannot be undone.`;
+                showModal(elements.modals.batchDeleteConfirm);
+                elements.mainContent.classList.add('backdrop-blur-sm');
             }
             
             function applyBatchDelete() {
                 alarms = alarms.filter(alarm => !selectedAlarmIds.includes(alarm.id));
                 saveStateToStorage();
                 toggleBatchEditMode(false);
-                hideModal(batchDeleteConfirmModal);
-                mainContent.classList.remove('backdrop-blur-sm');
+                hideModal(elements.modals.batchDeleteConfirm);
+                elements.mainContent.classList.remove('backdrop-blur-sm');
                 renderAlarms();
             }
             
             // --- 9. MANAGE GROUPS FUNCTIONS ---
             function renderGroupsList() {
-                groupsList.innerHTML = '';
+                elements.groups.list.innerHTML = '';
                 if (groups.length === 0) {
-                    groupsList.innerHTML = `<p class="text-muted text-center p-4">No groups created yet.</p>`;
+                    elements.groups.list.innerHTML = `<p class="text-muted text-center p-4">No groups created yet.</p>`;
                     return;
                 }
                 groups.forEach(group => {
@@ -922,19 +973,19 @@
                             <button data-action="edit-group" data-id="${group.id}" class="bg-slate-600 hover:bg-slate-500 text-white font-bold py-1 px-3 rounded-lg">Edit</button>
                         </div>
                     `;
-                    groupsList.appendChild(groupDiv);
+                    elements.groups.list.appendChild(groupDiv);
                 });
             }
             
             function showGroupEditView(groupId = null) {
                 editingGroupId = groupId;
-                groupListContainer.classList.add('hidden');
-                groupEditContainer.classList.remove('hidden');
+                elements.groups.container.classList.add('hidden');
+                elements.groups.editContainer.classList.remove('hidden');
                 
                 const group = groupId ? groups.find(g => g.id === groupId) : null;
                 const groupName = group ? group.name : '';
                 
-                groupEditContainer.innerHTML = `
+                elements.groups.editContainer.innerHTML = `
                     <h3 class="text-2xl font-semibold mb-6 text-center">${group ? `Edit "${group.name}" Template` : 'Create Group'}</h3>
                     <div class="space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar p-2">
                         <div>
@@ -945,7 +996,7 @@
                     </div>
                 `;
 
-                const form = groupEditContainer;
+                const form = elements.groups.editContainer;
                 form.querySelector('#modalTitle').remove();
                 form.querySelector('#alarmGroupSelect').parentElement.remove();
                 form.querySelector('#saveBtn').textContent = 'Save Template';
@@ -986,13 +1037,13 @@
                     if (currentSwatch) currentSwatch.classList.add('selected');
                 }
                 
-                form.querySelector('#soundSelector').value = defaults.sound || 'default';
+                form.querySelector('#soundSelector').value = defaults.sound || 'bell01.mp3';
 
                 form.querySelector('#saveBtn').addEventListener('click', saveGroup);
                 form.querySelector('#deleteGroupBtn').addEventListener('click', () => deleteGroup(editingGroupId));
                 form.querySelector('#cancelBtn').addEventListener('click', () => {
-                    groupListContainer.classList.remove('hidden');
-                    groupEditContainer.classList.add('hidden');
+                    elements.groups.container.classList.remove('hidden');
+                    elements.groups.editContainer.classList.add('hidden');
                 });
                 groupDaySelector.addEventListener('click', (e) => { if (e.target.classList.contains('day-btn')) e.target.classList.toggle('active'); });
                 groupColorSelector.addEventListener('click', (e) => {
@@ -1009,7 +1060,7 @@
             }
             
             function saveGroup() {
-                const form = groupEditContainer;
+                const form = elements.groups.editContainer;
                 const group = editingGroupId ? groups.find(g => g.id === editingGroupId) : { id: Date.now(), name: '', defaults: {} };
 
                 const newName = form.querySelector('#groupNameInput').value.trim();
@@ -1047,8 +1098,8 @@
                 saveStateToStorage();
                 renderGroupsList();
                 renderAlarms();
-                groupListContainer.classList.remove('hidden');
-                groupEditContainer.classList.add('hidden');
+                elements.groups.container.classList.remove('hidden');
+                elements.groups.editContainer.classList.add('hidden');
             }
             
             function deleteGroup(groupId) {
@@ -1063,199 +1114,230 @@
                 saveStateToStorage();
                 renderGroupsList();
                 renderAlarms();
-                groupListContainer.classList.remove('hidden');
-                groupEditContainer.classList.add('hidden');
+                elements.groups.container.classList.remove('hidden');
+                elements.groups.editContainer.classList.add('hidden');
             }
 
 
-            // --- 10. Event Listeners ---
-            addAlarmBtn.addEventListener('click', () => showAlarmModal('add'));
-            manageGroupsBtn.addEventListener('click', () => {
-                groupListContainer.classList.remove('hidden');
-                groupEditContainer.classList.add('hidden');
-                renderGroupsList();
-                showModal(manageGroupsModal);
-            });
-            
-            oneTimeBtn.addEventListener('click', () => finalizeSave(true));
-            keepFinishedBtn.addEventListener('click', () => finalizeSave(false));
-            goBackBtn.addEventListener('click', () => {
-                hideModal(tempAlarmModal);
-                mainContent.classList.remove('backdrop-blur-sm');
-                showModal(alarmModal);
-            });
-            
-            // Batch Edit Listeners
-            batchEditBtn.addEventListener('click', () => toggleBatchEditMode(true));
-            cancelBatchEditBtn.addEventListener('click', () => toggleBatchEditMode(false));
-            confirmBatchEditBtn.addEventListener('click', () => {
-                if (selectedAlarmIds.length > 0) {
-                    showAlarmModal('batch');
-                } else {
-                    toggleBatchEditMode(false);
-                }
-            });
-            batchDeleteBtn.addEventListener('click', showBatchDeleteModal);
-            cancelBatchDeleteBtn.addEventListener('click', () => {
-                hideModal(batchDeleteConfirmModal);
-                mainContent.classList.remove('backdrop-blur-sm');
-            });
-            confirmBatchDeleteBtn.addEventListener('click', applyBatchDelete);
-            returnToEditingBtn.addEventListener('click', () => {
-                hideModal(batchConfirmModal);
-                showModal(alarmModal);
-            });
-            confirmBatchChangesBtn.addEventListener('click', applyBatchChanges);
+            // --- 10. EVENT LISTENER SETUP ---
+            /**
+             * Groups all header-related event listeners.
+             */
+            function setupHeaderEventListeners() {
+                elements.header.addAlarmBtn.addEventListener('click', () => showAlarmModal('add'));
+                elements.header.manageGroupsBtn.addEventListener('click', () => {
+                    elements.groups.container.classList.remove('hidden');
+                    elements.groups.editContainer.classList.add('hidden');
+                    renderGroupsList();
+                    showModal(elements.modals.manageGroups);
+                });
+                elements.header.batchEditBtn.addEventListener('click', () => toggleBatchEditMode(true));
+                elements.batch.cancelBtn.addEventListener('click', () => toggleBatchEditMode(false));
+                elements.batch.confirmBtn.addEventListener('click', () => {
+                    if (selectedAlarmIds.length > 0) {
+                        showAlarmModal('batch');
+                    } else {
+                        toggleBatchEditMode(false);
+                    }
+                });
+                elements.batch.deleteBtn.addEventListener('click', showBatchDeleteModal);
+            }
 
+            /**
+             * Groups all settings bar event listeners.
+             */
+            function setupSettingsBarEventListeners() {
+                elements.settingsBar.timeFormatToggle.addEventListener('change', (e) => {
+                    settings.timeFormat = e.target.checked ? '24h' : '12h';
+                    saveStateToStorage();
+                    applySettings();
+                });
+                elements.settingsBar.frequencyToggle.addEventListener('change', (e) => {
+                    settings.frequencyDisplay = e.target.checked ? 'except' : 'standard';
+                    saveStateToStorage();
+                    applySettings();
+                });
+                elements.settingsBar.unorganizedToggle.addEventListener('change', (e) => {
+                    settings.showOnlyUnorganized = e.target.checked;
+                    saveStateToStorage();
+                    applySettings();
+                });
+                elements.settingsBar.paletteSelector.addEventListener('change', (e) => {
+                    const oldPalette = palettes[settings.alarmPalette];
+                    const newPalette = palettes[e.target.value];
+                    alarms.forEach(alarm => {
+                        if (alarm.color) {
+                            const colorIndex = oldPalette.indexOf(alarm.color);
+                            if (colorIndex !== -1) {
+                                alarm.color = newPalette[colorIndex];
+                            }
+                        }
+                    });
+                    settings.alarmPalette = e.target.value;
+                    saveStateToStorage();
+                    applySettings();
+                });
+                elements.settingsBar.searchBar.addEventListener('input', (e) => {
+                    settings.searchQuery = e.target.value;
+                    renderAlarms();
+                });
+                elements.settingsBar.sortAlarms.addEventListener('change', (e) => {
+                    settings.sortOrder = e.target.value;
+                    saveStateToStorage();
+                    renderAlarms();
+                });
+            }
 
-            // Settings Listeners
-            timeFormatToggle.addEventListener('change', (e) => {
-                settings.timeFormat = e.target.checked ? '24h' : '12h';
-                saveStateToStorage();
-                applySettings();
-            });
-            frequencyToggle.addEventListener('change', (e) => {
-                settings.frequencyDisplay = e.target.checked ? 'except' : 'standard';
-                saveStateToStorage();
-                applySettings();
-            });
-            unorganizedToggle.addEventListener('change', (e) => {
-                settings.showOnlyUnorganized = e.target.checked;
-                saveStateToStorage();
-                applySettings();
-            });
-             alarmPaletteSelector.addEventListener('change', (e) => {
-                const oldPalette = palettes[settings.alarmPalette];
-                const newPalette = palettes[e.target.value];
-                alarms.forEach(alarm => {
-                    if (alarm.color) {
-                        const colorIndex = oldPalette.indexOf(alarm.color);
-                        if (colorIndex !== -1) {
-                            alarm.color = newPalette[colorIndex];
+            /**
+             * Groups event listeners for the main alarm list.
+             */
+            function setupAlarmListEventListeners() {
+                elements.alarmList.addEventListener('click', (e) => {
+                    const alarmElement = e.target.closest('[data-id]');
+                    if (!alarmElement) return;
+
+                    const alarmId = parseInt(alarmElement.dataset.id);
+                    if (isBatchEditMode) {
+                        const index = selectedAlarmIds.indexOf(alarmId);
+                        if (index > -1) {
+                            selectedAlarmIds.splice(index, 1);
+                        } else {
+                            selectedAlarmIds.push(alarmId);
+                        }
+                        alarmElement.classList.toggle('batch-selected');
+                        updateSelectionCount();
+                        return;
+                    }
+
+                    const alarm = alarms.find(a => a.id === alarmId);
+                    const actionTarget = e.target.closest('[data-action]');
+                    const action = actionTarget ? actionTarget.dataset.action : null;
+
+                    switch(action) {
+                        case 'toggle':
+                            alarm.enabled = !alarm.enabled;
+                            if (!alarm.enabled) alarm.isTracked = false;
+                            break;
+                        case 'track':
+                            const isCurrentlyTracked = alarm.isTracked;
+                            alarms.forEach(a => a.isTracked = false);
+                            alarm.isTracked = !isCurrentlyTracked;
+                            break;
+                        case 'edit':
+                            showAlarmModal('edit', alarm);
+                            return;
+                    }
+                    saveStateToStorage();
+                    renderAlarms();
+                });
+            }
+
+            /**
+             * Groups event listeners for all modals.
+             */
+            function setupModalEventListeners() {
+                // Temp Alarm Modal
+                elements.tempConfirm.oneTimeBtn.addEventListener('click', () => finalizeSave(true));
+                elements.tempConfirm.keepFinishedBtn.addEventListener('click', () => finalizeSave(false));
+                elements.tempConfirm.goBackBtn.addEventListener('click', () => {
+                    hideModal(elements.modals.temporaryConfirm);
+                    elements.mainContent.classList.remove('backdrop-blur-sm');
+                    showModal(elements.modals.alarm);
+                });
+
+                // Batch Delete Modal
+                elements.batchDelete.cancelBtn.addEventListener('click', () => {
+                    hideModal(elements.modals.batchDeleteConfirm);
+                    elements.mainContent.classList.remove('backdrop-blur-sm');
+                });
+                elements.batchDelete.confirmBtn.addEventListener('click', applyBatchDelete);
+                
+                // Batch Confirm Modal
+                elements.batchConfirm.returnBtn.addEventListener('click', () => {
+                    hideModal(elements.modals.batchConfirm);
+                    showModal(elements.modals.alarm);
+                });
+                elements.batchConfirm.confirmBtn.addEventListener('click', applyBatchChanges);
+
+                // Manage Groups Modal
+                elements.groups.closeBtn.addEventListener('click', () => hideModal(elements.modals.manageGroups));
+                elements.groups.showCreateBtn.addEventListener('click', () => showGroupEditView());
+                elements.groups.list.addEventListener('click', (e) => {
+                    const target = e.target.closest('button');
+                    if (!target) return;
+                    const action = target.dataset.action;
+                    const id = parseInt(target.dataset.id);
+                    if (action === 'edit-group') {
+                        showGroupEditView(id);
+                    } else if (action === 'rename-group') {
+                        const group = groups.find(g => g.id === id);
+                        const newName = prompt('Enter new name for group:', group.name);
+                        if (newName && newName.trim()) {
+                            group.name = newName.trim();
+                            saveStateToStorage();
+                            renderGroupsList();
                         }
                     }
                 });
-                settings.alarmPalette = e.target.value;
-                saveStateToStorage();
-                applySettings();
-            });
-            searchBar.addEventListener('input', (e) => {
-                settings.searchQuery = e.target.value;
-                renderAlarms();
-            });
 
-            alarmListEl.addEventListener('click', (e) => {
-                const alarmElement = e.target.closest('[data-id]');
-                if (!alarmElement) return;
+                // Apply Group Defaults Modal
+                elements.applyDefaults.applyBtn.addEventListener('click', () => {
+                    const alarmModalInstance = elements.modals.alarm;
+                    const groupName = alarmModalInstance.querySelector('#alarmGroupSelect').value;
+                    const group = groups.find(g => g.name === groupName);
+                    if (!group || !group.defaults) return;
+                    
+                    const defaults = group.defaults;
+                    const is24h = settings.timeFormat === '24h';
 
-                const alarmId = parseInt(alarmElement.dataset.id);
-                if (isBatchEditMode) {
-                    const index = selectedAlarmIds.indexOf(alarmId);
-                    if (index > -1) {
-                        selectedAlarmIds.splice(index, 1);
-                    } else {
-                        selectedAlarmIds.push(alarmId);
+                    if (defaults.hour) {
+                        if (is24h) {
+                            alarmModalInstance.querySelector('#modalHour').value = convertTo24Hour(defaults.hour, defaults.ampm).toString().padStart(2, '0');
+                        } else {
+                            alarmModalInstance.querySelector('#modalHour').value = defaults.hour;
+                        }
+                        alarmModalInstance.querySelector('#modalMinute').value = defaults.minute;
+                        alarmModalInstance.querySelector('#modalAmPm').value = defaults.ampm;
                     }
-                    alarmElement.classList.toggle('batch-selected');
-                    updateSelectionCount();
-                    return;
-                }
-
-                const alarm = alarms.find(a => a.id === alarmId);
-                const actionTarget = e.target.closest('[data-action]');
-                const action = actionTarget ? actionTarget.dataset.action : null;
-
-                switch(action) {
-                    case 'toggle':
-                        alarm.enabled = !alarm.enabled;
-                        if (!alarm.enabled) alarm.isTracked = false;
-                        break;
-                    case 'track':
-                        const isCurrentlyTracked = alarm.isTracked;
-                        alarms.forEach(a => a.isTracked = false);
-                        alarm.isTracked = !isCurrentlyTracked;
-                        break;
-                    case 'edit':
-                        showAlarmModal('edit', alarm);
-                        return;
-                }
-                saveStateToStorage();
-                renderAlarms();
-            });
-
-            sortAlarmsEl.addEventListener('change', (e) => {
-                settings.sortOrder = e.target.value;
-                saveStateToStorage();
-                renderAlarms();
-            });
-            
-            // Manage Groups Listeners
-            closeGroupsModalBtn.addEventListener('click', () => hideModal(manageGroupsModal));
-            showCreateGroupBtn.addEventListener('click', () => showGroupEditView());
-            groupsList.addEventListener('click', (e) => {
-                const target = e.target.closest('button');
-                if (!target) return;
-                const action = target.dataset.action;
-                const id = parseInt(target.dataset.id);
-                if (action === 'edit-group') {
-                    showGroupEditView(id);
-                } else if (action === 'rename-group') {
-                    const group = groups.find(g => g.id === id);
-                    const newName = prompt('Enter new name for group:', group.name);
-                    if (newName && newName.trim()) {
-                        group.name = newName.trim();
-                        saveStateToStorage();
-                        renderGroupsList();
+                    
+                    alarmModalInstance.querySelector('#alarmLabel').value = defaults.label || '';
+                    alarmModalInstance.querySelector('#alarmDescription').value = defaults.description || '';
+                    
+                    const daySelector = alarmModalInstance.querySelector('#daySelector');
+                    daySelector.querySelectorAll('.day-btn').forEach(btn => btn.classList.remove('active'));
+                    if(defaults.days) defaults.days.forEach(day => daySelector.querySelector(`[data-day="${day}"]`).classList.add('active'));
+                    
+                    const colorSelector = alarmModalInstance.querySelector('#colorSelector');
+                    colorSelector.querySelectorAll('.color-swatch').forEach(sw => sw.classList.remove('selected'));
+                    if (defaults.color) {
+                        const swatch = colorSelector.querySelector(`[data-color="${defaults.color}"]`);
+                        if (swatch) swatch.classList.add('selected');
                     }
-                }
-            });
-            
-            // Apply Defaults Listeners
-            applyDefaultsBtn.addEventListener('click', () => {
-                const alarmModalInstance = document.getElementById('alarmModal');
-                const groupName = alarmModalInstance.querySelector('#alarmGroupSelect').value;
-                const group = groups.find(g => g.name === groupName);
-                if (!group || !group.defaults) return;
-                
-                const defaults = group.defaults;
-                const is24h = settings.timeFormat === '24h';
-
-                if (defaults.hour) {
-                    if (is24h) {
-                        alarmModalInstance.querySelector('#modalHour').value = convertTo24Hour(defaults.hour, defaults.ampm).toString().padStart(2, '0');
-                    } else {
-                        alarmModalInstance.querySelector('#modalHour').value = defaults.hour;
-                    }
-                    alarmModalInstance.querySelector('#modalMinute').value = defaults.minute;
-                    alarmModalInstance.querySelector('#modalAmPm').value = defaults.ampm;
-                }
-                
-                alarmModalInstance.querySelector('#alarmLabel').value = defaults.label || '';
-                alarmModalInstance.querySelector('#alarmDescription').value = defaults.description || '';
-                
-                const daySelector = alarmModalInstance.querySelector('#daySelector');
-                daySelector.querySelectorAll('.day-btn').forEach(btn => btn.classList.remove('active'));
-                if(defaults.days) defaults.days.forEach(day => daySelector.querySelector(`[data-day="${day}"]`).classList.add('active'));
-                
-                const colorSelector = alarmModalInstance.querySelector('#colorSelector');
-                colorSelector.querySelectorAll('.color-swatch').forEach(sw => sw.classList.remove('selected'));
-                if (defaults.color) {
-                    const swatch = colorSelector.querySelector(`[data-color="${defaults.color}"]`);
-                    if (swatch) swatch.classList.add('selected');
-                }
-                
-                alarmModalInstance.querySelector('#soundSelector').value = defaults.sound || 'default';
-                
-                hideModal(applyGroupDefaultsModal);
-            });
-            dontApplyDefaultsBtn.addEventListener('click', () => hideModal(applyGroupDefaultsModal));
+                    
+                    alarmModalInstance.querySelector('#soundSelector').value = defaults.sound || 'bell01.mp3';
+                    
+                    hideModal(elements.modals.applyGroupDefaults);
+                });
+                elements.applyDefaults.dontApplyBtn.addEventListener('click', () => hideModal(elements.modals.applyGroupDefaults));
+            }
 
 
             // --- 11. Initialization ---
-            loadStateFromStorage();
-            applySettings();
-            setInterval(updateClock, 1000);
-            console.log("Polar Alarm Clock UI updated with full batch edit and group management features.");
+            function initializeApp() {
+                loadStateFromStorage();
+                applySettings();
+                
+                // Setup all event listeners
+                setupHeaderEventListeners();
+                setupSettingsBarEventListeners();
+                setupAlarmListEventListeners();
+                setupModalEventListeners();
+
+                setInterval(updateClock, 1000);
+                console.log("Polar Alarm Clock UI Initialized.");
+            }
+
+            initializeApp();
         });
     </script>
 
