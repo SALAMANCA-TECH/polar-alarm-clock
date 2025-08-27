@@ -1,0 +1,42 @@
+export const colorSchemes = {
+  default: {
+    seconds: '#FF0000',
+    minutes: '#00FF00',
+    hours: '#0000FF',
+    day: '#FFFF00',
+    month: '#FF00FF',
+    timer: '#FFFFFF',
+  },
+  neon: {
+    seconds: '#FF1493',
+    minutes: '#00FFFF',
+    hours: '#7FFF00',
+    day: '#FFD700',
+    month: '#9400D3',
+    timer: '#FFFFFF',
+  },
+  pastel: {
+    seconds: '#FFB6C1',
+    minutes: '#ADD8E6',
+    hours: '#90EE90',
+    day: '#F0E68C',
+    month: '#DDA0DD',
+    timer: '#333333',
+  },
+  colorblind: {
+    seconds: '#E69F00',
+    minutes: '#56B4E9',
+    hours: '#009E73',
+    day: '#F0E442',
+    month: '#0072B2',
+    timer: '#FFFFFF',
+  },
+  planets: {
+    seconds: '#FFFFFF',
+    minutes: '#FF00FF',
+    hours: '#FFFF00',
+    day: '#0000FF',
+    month: '#00FF00',
+    timer: '#FF0000',
+  },
+};
