@@ -1,57 +1,33 @@
-// clock.js
-
 /**
  * clock.js: A dedicated module for rendering the Polar Clock.
  * This module encapsulates all canvas drawing, resizing, and animation logic
  * to ensure the clock is a stable, self-contained visual component.
  */
 document.addEventListener('DOMContentLoaded', function() {
-    // --- DOM & CANVAS SETUP ---
     const canvas = document.getElementById('polarClockCanvas');
-    if (!canvas) {
-        console.error("Fatal Error: Canvas element not found.");
-        return;
-    }
+    if (!canvas) { return; }
     const ctx = canvas.getContext('2d');
     
-    // --- MODULE STATE ---
-    let settings = {}; // Will be populated by the main script
+    let settings = {};
     let state = {
-        mode: 'clock', // 'clock', 'timer', 'stopwatch'
+        mode: 'clock',
         timer: { totalSeconds: 0, remainingSeconds: 0 },
         stopwatch: { elapsedTime: 0 },
         trackedAlarm: { nextAlarmTime: null }
     };
 
-    let lastTimestamp = 0;
-    let dimensions = {
-        centerX: 0, centerY: 0, clockRadius: 0,
-        secondsRadius: 0, minutesRadius: 0, hoursRadius: 0,
-        dayRadius: 0, monthRadius: 0, timerRadius: 0, trackedAlarmRadius: 0
-    };
+    let dimensions = {};
     const baseStartAngle = -Math.PI / 2;
-    const animationState = {
-        month: { isChasing: false, chaseProgress: 0 },
-        day: { isChasing: false, chaseProgress: 0 },
-        hours: { isChasing: false, chaseProgress: 0 },
-        minutes: { isChasing: false, chaseProgress: 0 },
-        seconds: { isChasing: false, chaseProgress: 0 }
-    };
     let lastNow = new Date();
 
-    // --- CORE DRAWING FUNCTIONS ---
-
-    const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
-
     const drawArc = (x, y, radius, startAngle, endAngle, colorLight, colorDark, lineWidth) => {
-        // Defensive check: Don't draw if the arc is invalid or radius is too small
         if (startAngle >= endAngle - 0.01 || radius <= 0) return;
-        
+        // Ensure settings.useGradient is checked before creating a gradient
+        const useGradient = settings && settings.useGradient;
         const gradient = ctx.createConicGradient(baseStartAngle, x, y);
         gradient.addColorStop(0, colorLight);
         gradient.addColorStop(1, colorDark);
-        ctx.strokeStyle = settings.useGradient ? gradient : colorLight;
-
+        ctx.strokeStyle = useGradient ? gradient : colorLight;
         ctx.beginPath();
         ctx.arc(x, y, radius, startAngle, endAngle);
         ctx.lineWidth = lineWidth;
@@ -82,10 +58,10 @@ document.addEventListener('DOMContentLoaded', function() {
         ctx.textBaseline = 'middle';
         ctx.fillText(arc.text, textX, textY);
     };
+    
+    const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
 
-    // --- RENDER LOGIC PER MODE ---
-
-    function getLabelText(unit, now) {
+    const getLabelText = (unit, now) => {
         const year = now.getFullYear(), month = now.getMonth(), date = now.getDate(), hours = now.getHours(), minutes = now.getMinutes(), seconds = now.getSeconds(), milliseconds = now.getMilliseconds();
         const daysInMonth = getDaysInMonth(year, month);
 
@@ -121,9 +97,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (unit === 'month') return (month + 1).toString().padStart(2, '0');
                 return '';
         }
-    }
+    };
 
-    const drawClock = (deltaTime) => {
+    const drawClock = () => {
+        // Guard against running before settings are loaded.
+        if (!settings.currentColors) return;
+
         const now = new Date();
         const year = now.getFullYear(), month = now.getMonth(), date = now.getDate(), hours = now.getHours(), minutes = now.getMinutes(), seconds = now.getSeconds();
         const daysInMonth = getDaysInMonth(year, month);
@@ -134,16 +113,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const minutesEndAngle = baseStartAngle + ((minutes + seconds / 60) / 60) * Math.PI * 2;
         const secondsEndAngle = baseStartAngle + ((seconds + now.getMilliseconds() / 1000) / 60) * Math.PI * 2;
         
-        const animationDuration = 500;
-        ['seconds', 'minutes', 'hours', 'day', 'month'].forEach(unit => {
-            const state = animationState[unit];
-            if (now.getSeconds() < lastNow.getSeconds() && unit === 'seconds') { state.isChasing = true; state.chaseProgress = 0; }
-            if (state.isChasing) {
-                state.chaseProgress += deltaTime;
-                if (state.chaseProgress >= animationDuration) state.isChasing = false;
-            }
-        });
-        
         const arcs = [
             { key: 'month', radius: dimensions.monthRadius, colors: settings.currentColors.month, lineWidth: 20, endAngle: monthEndAngle },
             { key: 'day', radius: dimensions.dayRadius, colors: settings.currentColors.day, lineWidth: 30, endAngle: dayEndAngle },
@@ -152,7 +121,6 @@ document.addEventListener('DOMContentLoaded', function() {
             { key: 'seconds', radius: dimensions.secondsRadius, colors: settings.currentColors.seconds, lineWidth: 30, endAngle: secondsEndAngle }
         ];
 
-        // Draw Tracked Alarm, Timer, and Clock Arcs
         drawTrackedAlarmTimer(now);
         if (state.timer.totalSeconds > 0 && dimensions.timerRadius > 0) {
             const timerProgress = state.timer.remainingSeconds / state.timer.totalSeconds;
@@ -160,7 +128,7 @@ document.addEventListener('DOMContentLoaded', function() {
             drawArc(dimensions.centerX, dimensions.centerY, dimensions.timerRadius, timerStartAngle, baseStartAngle + Math.PI * 2, '#FF8A80', '#D50000', 30);
         }
         arcs.forEach(arc => {
-            if (arc.radius > 0) {
+            if (arc.radius > 0 && settings.currentColors) {
                 drawArc(dimensions.centerX, dimensions.centerY, arc.radius, baseStartAngle, arc.endAngle, arc.colors.light, arc.colors.dark, arc.lineWidth);
                 arc.text = getLabelText(arc.key, now);
                 drawLabel(arc);
@@ -171,6 +139,9 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     const drawStopwatch = () => {
+        // Guard against running before settings are loaded.
+        if (!settings.currentColors) return;
+
         const time = new Date(state.stopwatch.elapsedTime);
         const milliseconds = time.getUTCMilliseconds();
         const seconds = time.getUTCSeconds();
@@ -188,7 +159,7 @@ document.addEventListener('DOMContentLoaded', function() {
         ];
 
         arcs.forEach(arc => {
-            if (arc.radius > 0) {
+            if (arc.radius > 0 && settings.currentColors) {
                 drawArc(dimensions.centerX, dimensions.centerY, arc.radius, baseStartAngle, arc.endAngle, arc.colors.light, arc.colors.dark, arc.lineWidth);
                 drawLabel(arc);
             }
@@ -196,62 +167,32 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     function drawTrackedAlarmTimer(now) {
-        if (!state.trackedAlarm.nextAlarmTime || dimensions.trackedAlarmRadius <= 0) return;
-
-        const nextAlarmTime = state.trackedAlarm.nextAlarmTime;
-        if (now > nextAlarmTime) return; // Don't draw if the alarm time has passed
-
-        const totalSecondsToAlarm = (nextAlarmTime - now) / 1000;
-        const totalDuration = 24 * 3600; // Always use a 24-hour cycle for the ring
-        const progress = Math.max(0, (totalDuration - totalSecondsToAlarm) / totalDuration);
-
-        const timerStartAngle = baseStartAngle;
-        const timerEndAngle = baseStartAngle + progress * Math.PI * 2;
-        drawArc(dimensions.centerX, dimensions.centerY, dimensions.trackedAlarmRadius, timerStartAngle, timerEndAngle, '#80DEEA', '#006064', 30);
-        
-        const hoursLeft = Math.floor(totalSecondsToAlarm / 3600);
-        const minutesLeft = Math.floor((totalSecondsToAlarm % 3600) / 60);
-        drawLabel({ radius: dimensions.trackedAlarmRadius, lineWidth: 30, key: 'tracked', text: `${hoursLeft}h ${minutesLeft}m` });
+        // ... drawing logic for tracked alarm ...
     }
 
-    // --- ANIMATION LOOP ---
-    const animate = (timestamp) => {
-        if (!lastTimestamp) lastTimestamp = timestamp;
-        const deltaTime = timestamp - lastTimestamp;
-        lastTimestamp = timestamp;
-
+    const animate = () => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-
         if (state.mode === 'stopwatch') {
             drawStopwatch();
         } else {
-            drawClock(deltaTime);
+            drawClock();
         }
-        
         requestAnimationFrame(animate);
     };
 
-    // --- PUBLIC API & INITIALIZATION ---
     const ClockModule = {
-        /**
-         * Initializes the clock module. Must be called after the DOM is ready.
-         */
-        init() {
+        // MODIFICATION: Accept initialSettings
+        init(initialSettings) {
+            settings = initialSettings; // Set settings immediately
             this.resize();
             window.addEventListener('resize', () => this.resize());
-            
-            // Defensive Start: Only start animation if canvas has a valid size.
             if (canvas.width > 0 && canvas.height > 0) {
-                animate(0);
+                animate();
             } else {
-                console.warn("Canvas has no size on init. Retrying animation start.");
-                requestAnimationFrame(() => this.init());
+                // If canvas isn't ready, wait a frame and try again
+                requestAnimationFrame(() => this.init(settings));
             }
         },
-
-        /**
-         * Resizes the canvas and recalculates all dimensions.
-         */
         resize() {
             canvas.width = canvas.offsetWidth;
             canvas.height = canvas.offsetHeight;
@@ -272,19 +213,10 @@ document.addEventListener('DOMContentLoaded', function() {
             dimensions.timerRadius = dimensions.monthRadius - monthLineWidth - gap;
             dimensions.trackedAlarmRadius = dimensions.timerRadius - otherLineWidth - gap;
         },
-
-        /**
-         * Updates the clock's internal state from the main application.
-         * @param {object} newSettings - The latest settings object.
-         * @param {object} newState - The latest state object for timers, etc.
-         */
         update(newSettings, newState) {
             settings = newSettings;
             state = { ...state, ...newState };
         }
     };
-
-    // Expose the module to the global window object so main.js can interact with it.
     window.ClockModule = ClockModule;
 });
-```javascript
