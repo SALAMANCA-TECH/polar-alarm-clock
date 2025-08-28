@@ -4,6 +4,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const digitalTime = document.getElementById('digitalTime');
     const digitalDate = document.getElementById('digitalDate');
     const digitalDisplay = document.getElementById('digitalDisplay');
+    // Add a reference to the loading overlay
+    const loadingOverlay = document.getElementById('loading-overlay');
     
     // --- GLOBAL STATE ---
     let settings = {};
@@ -104,9 +106,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const savedState = localStorage.getItem('polarClockState');
         if (savedState) {
             const loadedState = JSON.parse(savedState);
-            // Merge saved state with defaults to prevent errors if state shape changes
             state = { ...state, ...loadedState };
-            // Ensure running states are false on page load
             state.timer.isRunning = false;
             state.stopwatch.isRunning = false;
             state.pomodoro.isRunning = false;
@@ -135,11 +135,10 @@ document.addEventListener('DOMContentLoaded', function() {
         if (storedAlarms) state.advancedAlarms = JSON.parse(storedAlarms);
     }
     function checkAdvancedAlarms(now) {
-        // This is a placeholder for the full alarm checking logic
+        // Placeholder for full alarm checking logic
     }
     function playSound(soundFile, volume) {
         if (!soundFile) return;
-        // Path updated to be relative to the index.html file.
         const audio = new Audio(`assets/sounds/${soundFile}`);
         audio.volume = volume;
         audio.play().catch(e => console.error("Error playing sound:", e));
@@ -151,7 +150,6 @@ document.addEventListener('DOMContentLoaded', function() {
         loadSettings();
         loadAdvancedAlarms();
 
-        // MODIFICATION: Pass the loaded settings directly to the ClockModule
         window.ClockModule.init(settings);
         window.ToolsModule.init(state);
         window.PomodoroModule.init(state, settings);
@@ -179,6 +177,15 @@ document.addEventListener('DOMContentLoaded', function() {
             settings.pomodoroPulseEnabled = e.target.checked;
             saveSettings();
         });
+
+        // Hide the loading overlay now that everything is initialized
+        if (loadingOverlay) {
+            loadingOverlay.style.opacity = '0';
+            // Remove it from the DOM after the transition
+            setTimeout(() => {
+                loadingOverlay.style.display = 'none';
+            }, 500);
+        }
     }
     
     initializeApp();

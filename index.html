@@ -1,83 +1,172 @@
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Polar Clock Pro</title>
-        <link rel="stylesheet" href="style.css">
-    </head>
-    <body>
-        <div id="loading-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #121212; display: flex; justify-content: center; align-items: center; z-index: 9999; transition: opacity 0.5s;">
-            <h1 style="color: white; font-size: 2em;">Loading...</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Polar Clock Pro</title>
+    <!-- DEPENDENCIES: Tailwind CSS for styling and Phosphor Icons for UI icons -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Canvas Container for the Clock -->
+    <div class="canvas-container">
+        <div id="active-clock-name" style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); font-size: 1.5em; color: #fff; z-index: 10;"></div>
+        <canvas id="polarClockCanvas"></canvas>
+        <div id="digitalDisplay">
+            <div id="digitalTime"></div>
+            <div id="digitalDate"></div>
         </div>
-        <!-- Canvas Container for the Clock -->
-        <div class="canvas-container">
-            <div id="active-clock-name" style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); font-size: 1.5em; color: #fff; z-index: 10;"></div>
-            <canvas id="polarClockCanvas"></canvas>
-            <div id="digitalDisplay">
-                <div id="digitalTime"></div>
-                <div id="digitalDate"></div>
-            </div>
-            <div id="miniature-clocks-container" style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 10;">
-                <!-- Miniature clocks will be added here -->
+        <div id="miniature-clocks-container" style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 10;">
+            <!-- Miniature clocks will be added here -->
+        </div>
+    </div>
+
+    <!-- UI Container for Controls -->
+    <div class="ui-container">
+        <!-- Main Navigation View -->
+        <div id="mainView" class="ui-content">
+            <div class="main-nav-buttons">
+                <button id="goToToolsBtn" class="main-nav-button">Tools</button>
+                <button id="goToCustomizeBtn" class="main-nav-button">Customize</button>
+                <button id="goToSettingsBtn" class="main-nav-button">Settings</button>
+                <button id="goToAlarmsBtn" class="main-nav-button">Alarms</button>
             </div>
         </div>
-    
-        <!-- UI Container for Controls -->
-        <div class="ui-container">
-            <!-- Main Navigation View -->
-            <div id="mainView" class="ui-content">
-                <div class="main-nav-buttons">
-                    <button id="goToToolsBtn" class="main-nav-button">Tools</button>
-                    <button id="goToCustomizeBtn" class="main-nav-button">Customize</button>
-                    <button id="goToSettingsBtn" class="main-nav-button">Settings</button>
-                    <button id="goToAlarmsBtn" class="main-nav-button">Alarms</button>
+
+        <!-- Tools View -->
+        <div id="toolsView" class="ui-content" style="display: none;">
+            <div class="view-header">
+                <button id="backToMainFromTools" class="back-button">Back</button>
+            </div>
+            <div class="tab-buttons">
+                <button id="timerTab" class="tab-button active">Timer</button>
+                <button id="pomodoroTab" class="tab-button">Pomodoro</button>
+                <button id="alarmTab" class="tab-button">Alarm</button>
+                <button id="stopwatchTab" class="tab-button">Stopwatch</button>
+            </div>
+            <!-- Timer Panel -->
+            <div id="timerPanel" class="ui-panel">
+                 <div class="time-inputs">
+                    <div class="input-group">
+                        <input type="number" id="timerHours" placeholder="0" min="0" max="23" value="0">
+                        <label>Hours</label>
+                    </div>
+                    <span>:</span>
+                    <div class="input-group">
+                        <input type="number" id="timerMinutes" placeholder="00" min="0" max="59" value="0">
+                        <label>Minutes</label>
+                    </div>
+                    <span>:</span>
+                    <div class="input-group">
+                        <input type="number" id="timerSeconds" placeholder="00" min="0" max="59" value="0">
+                        <label>Seconds</label>
+                    </div>
+                </div>
+                <div class="control-buttons">
+                    <button id="toggleTimerBtn">Start</button>
+                    <button id="resetTimer">Reset</button>
+                </div>
+                 <div class="setting-toggle">
+                    <span>Repeat</span>
+                    <label class="switch">
+                        <input type="checkbox" id="intervalToggle">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="setting-toggle">
+                    <span>Sound</span>
+                    <select id="timerSound" class="sound-select">
+                        <option value="Ahooga.wav">Ahooga</option>
+                        <option value="bell01.mp3" selected>Bell 1</option>
+                        <option value="Bwauhm.mp3">Bwauhm</option>
+                        <option value="Lenovo_Error.mp3">Lenovo Error</option>
+                        <option value="nice_digital_watch.mp3">Nice Watch</option>
+                        <option value="rotten_digital_watch.wav">Rotten Watch</option>
+                        <option value="Tick_Tock.wav">Tick Tock 1</option>
+                        <option value="Tick_Tock_Two.wav">Tick Tock 2</option>
+                    </select>
+                    <button class="preview-btn" data-target="timerSound">Preview</button>
                 </div>
             </div>
-    
-            <!-- Tools View -->
-            <div id="toolsView" class="ui-content" style="display: none;">
-                <div class="view-header">
-                    <button id="backToMainFromTools" class="back-button">Back</button>
-                </div>
-                <div class="tab-buttons">
-                    <button id="timerTab" class="tab-button active">Timer</button>
-                    <button id="pomodoroTab" class="tab-button">Pomodoro</button>
-                    <button id="alarmTab" class="tab-button">Alarm</button>
-                    <button id="stopwatchTab" class="tab-button">Stopwatch</button>
-                </div>
-                <!-- Timer Panel -->
-                <div id="timerPanel" class="ui-panel">
-                     <div class="time-inputs">
-                        <div class="input-group">
-                            <input type="number" id="timerHours" placeholder="0" min="0" max="23" value="0">
-                            <label>Hours</label>
-                        </div>
-                        <span>:</span>
-                        <div class="input-group">
-                            <input type="number" id="timerMinutes" placeholder="00" min="0" max="59" value="0">
-                            <label>Minutes</label>
-                        </div>
-                        <span>:</span>
-                        <div class="input-group">
-                            <input type="number" id="timerSeconds" placeholder="00" min="0" max="59" value="0">
-                            <label>Seconds</label>
-                        </div>
+            <!-- Pomodoro Panel -->
+            <div id="pomodoroPanel" class="ui-panel" style="display: none;">
+                <div class="settings-section">
+                    <div class="flex items-center gap-2">
+                        <h3 class="text-lg font-semibold" id="pomodoroStatus">Work Session</h3>
+                        <button id="pomodoroInfoBtn" class="bg-transparent border-none text-gray-400 hover:text-white transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-question-circle" viewBox="0 0 16 16">
+                                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                                <path d="M5.255 5.786a.237.237 0 0 0 .241.247h.825c.138 0 .248-.11.248-.247V5.31c0-.138-.11-.247-.248-.247h-.825a.237.237 0 0 0-.241.247zm1.328 1.41a.237.237 0 0 0 .241.247h.825c.138 0 .248-.11.248-.247V6.92c0-.138-.11-.247-.248-.247h-.825a.237.237 0 0 0-.241.247zM8 4a.5.5 0 0 1 .5.5v1.25a.5.5 0 0 1-1 0V4.5A.5.5 0 0 1 8 4zm0 4.5a.5.5 0 0 1 .5.5v2.25a.5.5 0 0 1-1 0V9a.5.5 0 0 1 .5-.5z"/>
+                            </svg>
+                        </button>
                     </div>
-                    <div class="control-buttons">
-                        <button id="toggleTimerBtn">Start</button>
-                        <button id="resetTimer">Reset</button>
+                    <div id="pomodoroTimerDisplay" class="text-6xl font-mono">25:00</div>
+                </div>
+                <div class="control-buttons">
+                    <button id="startPomodoro">Start</button>
+                    <button id="pausePomodoro">Pause</button>
+                    <button id="resetPomodoro">Reset</button>
+                </div>
+                <div class="settings-section w-full max-w-xs">
+                    <h3 class="text-sm uppercase text-gray-400 mt-4">Settings</h3>
+                    <div class="flex justify-between w-full items-center">
+                        <label for="pomodoroWorkDuration">Work (min)</label>
+                        <input type="number" id="pomodoroWorkDuration" class="time-input-small" value="25" min="1">
                     </div>
-                     <div class="setting-toggle">
-                        <span>Repeat</span>
+                    <div class="flex justify-between w-full items-center">
+                        <label for="pomodoroShortBreakDuration">Short Break (min)</label>
+                        <input type="number" id="pomodoroShortBreakDuration" class="time-input-small" value="5" min="1">
+                    </div>
+                    <div class="flex justify-between w-full items-center">
+                        <label for="pomodoroLongBreakDuration">Long Break (min)</label>
+                        <input type="number" id="pomodoroLongBreakDuration" class="time-input-small" value="15" min="1">
+                    </div>
+                    <div class="setting-toggle mt-2">
+                        <span>Glow Effect</span>
                         <label class="switch">
-                            <input type="checkbox" id="intervalToggle">
+                            <input type="checkbox" id="pomodoroGlowToggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-toggle">
+                        <span>Pulse Effect</span>
+                        <label class="switch">
+                            <input type="checkbox" id="pomodoroPulseToggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <!-- Alarm Panel -->
+            <div id="alarmPanel" class="ui-panel" style="display: none;">
+                <div class="time-inputs">
+                    <div class="input-group">
+                        <input type="number" id="alarmHours" placeholder="0" min="1" max="12" value="8">
+                        <label>Hours</label>
+                    </div>
+                    <span>:</span>
+                    <div class="input-group">
+                        <input type="number" id="alarmMinutes" placeholder="00" min="0" max="59" value="0">
+                        <label>Minutes</label>
+                    </div>
+                </div>
+                <div class="alarm-controls">
+                    <div id="amPmContainer" class="am-pm-toggle">
+                        <button id="amButton" class="format-button am-pm-button active">AM</button>
+                        <button id="pmButton" class="format-button am-pm-button">PM</button>
+                    </div>
+                    <div class="setting-toggle">
+                        <span>Alarm Off/On</span>
+                        <label class="switch">
+                            <input type="checkbox" id="alarmToggle">
                             <span class="slider"></span>
                         </label>
                     </div>
                     <div class="setting-toggle">
                         <span>Sound</span>
-                        <select id="timerSound" class="sound-select">
+                        <select id="alarmSound" class="sound-select">
                             <option value="Ahooga.wav">Ahooga</option>
                             <option value="bell01.mp3" selected>Bell 1</option>
                             <option value="Bwauhm.mp3">Bwauhm</option>
@@ -87,211 +176,121 @@
                             <option value="Tick_Tock.wav">Tick Tock 1</option>
                             <option value="Tick_Tock_Two.wav">Tick Tock 2</option>
                         </select>
-                        <button class="preview-btn" data-target="timerSound">Preview</button>
-                    </div>
-                </div>
-                <!-- Pomodoro Panel -->
-                <div id="pomodoroPanel" class="ui-panel" style="display: none;">
-                    <div class="settings-section">
-                        <div class="flex items-center gap-2">
-                            <h3 class="text-lg font-semibold" id="pomodoroStatus">Work Session</h3>
-                            <button id="pomodoroInfoBtn" class="bg-transparent border-none text-gray-400 hover:text-white transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-question-circle" viewBox="0 0 16 16">
-                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
-                                    <path d="M5.255 5.786a.237.237 0 0 0 .241.247h.825c.138 0 .248-.11.248-.247V5.31c0-.138-.11-.247-.248-.247h-.825a.237.237 0 0 0-.241.247zm1.328 1.41a.237.237 0 0 0 .241.247h.825c.138 0 .248-.11.248-.247V6.92c0-.138-.11-.247-.248-.247h-.825a.237.237 0 0 0-.241.247zM8 4a.5.5 0 0 1 .5.5v1.25a.5.5 0 0 1-1 0V4.5A.5.5 0 0 1 8 4zm0 4.5a.5.5 0 0 1 .5.5v2.25a.5.5 0 0 1-1 0V9a.5.5 0 0 1 .5-.5z"/>
-                                </svg>
-                            </button>
-                        </div>
-                        <div id="pomodoroTimerDisplay" class="text-6xl font-mono">25:00</div>
-                    </div>
-                    <div class="control-buttons">
-                        <button id="startPomodoro">Start</button>
-                        <button id="pausePomodoro">Pause</button>
-                        <button id="resetPomodoro">Reset</button>
-                    </div>
-                    <div class="settings-section w-full max-w-xs">
-                        <h3 class="text-sm uppercase text-gray-400 mt-4">Settings</h3>
-                        <div class="flex justify-between w-full items-center">
-                            <label for="pomodoroWorkDuration">Work (min)</label>
-                            <input type="number" id="pomodoroWorkDuration" class="time-input-small" value="25" min="1">
-                        </div>
-                        <div class="flex justify-between w-full items-center">
-                            <label for="pomodoroShortBreakDuration">Short Break (min)</label>
-                            <input type="number" id="pomodoroShortBreakDuration" class="time-input-small" value="5" min="1">
-                        </div>
-                        <div class="flex justify-between w-full items-center">
-                            <label for="pomodoroLongBreakDuration">Long Break (min)</label>
-                            <input type="number" id="pomodoroLongBreakDuration" class="time-input-small" value="15" min="1">
-                        </div>
-                        <div class="setting-toggle mt-2">
-                            <span>Glow Effect</span>
-                            <label class="switch">
-                                <input type="checkbox" id="pomodoroGlowToggle" checked>
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-                        <div class="setting-toggle">
-                            <span>Pulse Effect</span>
-                            <label class="switch">
-                                <input type="checkbox" id="pomodoroPulseToggle" checked>
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-                <!-- Alarm Panel -->
-                <div id="alarmPanel" class="ui-panel" style="display: none;">
-                    <div class="time-inputs">
-                        <div class="input-group">
-                            <input type="number" id="alarmHours" placeholder="0" min="1" max="12" value="8">
-                            <label>Hours</label>
-                        </div>
-                        <span>:</span>
-                        <div class="input-group">
-                            <input type="number" id="alarmMinutes" placeholder="00" min="0" max="59" value="0">
-                            <label>Minutes</label>
-                        </div>
-                    </div>
-                    <div class="alarm-controls">
-                        <div id="amPmContainer" class="am-pm-toggle">
-                            <button id="amButton" class="format-button am-pm-button active">AM</button>
-                            <button id="pmButton" class="format-button am-pm-button">PM</button>
-                        </div>
-                        <div class="setting-toggle">
-                            <span>Alarm Off/On</span>
-                            <label class="switch">
-                                <input type="checkbox" id="alarmToggle">
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-                        <div class="setting-toggle">
-                            <span>Sound</span>
-                            <select id="alarmSound" class="sound-select">
-                                <option value="Ahooga.wav">Ahooga</option>
-                                <option value="bell01.mp3" selected>Bell 1</option>
-                                <option value="Bwauhm.mp3">Bwauhm</option>
-                                <option value="Lenovo_Error.mp3">Lenovo Error</option>
-                                <option value="nice_digital_watch.mp3">Nice Watch</option>
-                                <option value="rotten_digital_watch.wav">Rotten Watch</option>
-                                <option value="Tick_Tock.wav">Tick Tock 1</option>
-                                <option value="Tick_Tock_Two.wav">Tick Tock 2</option>
-                            </select>
-                            <button class="preview-btn" data-target="alarmSound">Preview</button>
-                        </div>
-                    </div>
-                </div>
-                <!-- Stopwatch Panel -->
-                <div id="stopwatchPanel" class="ui-panel" style="display: none;">
-                    <div class="control-buttons">
-                        <button id="toggleStopwatchBtn">Start</button>
-                        <button id="lapStopwatch">Lap</button>
-                        <button id="resetStopwatch">Reset</button>
-                    </div>
-                    <div class="settings-section w-full max-w-xs">
-                        <h3 class="text-sm uppercase text-gray-400 mt-4">Catch Up Time</h3>
-                        <div class="flex items-center justify-center gap-2">
-                            <input type="number" id="catchUpMinutes" class="time-input-small" placeholder="Min" min="0">
-                            <input type="number" id="catchUpSeconds" class="time-input-small" placeholder="Sec" min="0" max="59">
-                            <button id="addCatchUpTimeBtn" class="control-btn">Add Time</button>
-                        </div>
-                    </div>
-                    <ul id="lapTimes" class="w-full max-w-xs space-y-2"></ul>
-                </div>
-            </div>
-            
-            <!-- Settings View -->
-            <div id="settingsView" class="ui-content" style="display: none;">
-                <div class="view-header">
-                    <button id="backToMainFromSettings" class="back-button">Back</button>
-                </div>
-                <div class="settings-section">
-                    <h3>Label Display</h3>
-                    <div class="display-mode-buttons">
-                         <button id="modeStandard" class="display-mode-button active">Standard</button>
-                         <button id="modePercentage" class="display-mode-button">Percentage</button>
-                         <button id="modeRemainder" class="display-mode-button">Remainder</button>
-                    </div>
-                </div>
-                <div class="settings-section">
-                    <h3>Time Format</h3>
-                    <div class="format-buttons">
-                         <button id="format12" class="format-button active">12 Hour</button>
-                         <button id="format24" class="format-button">24 Hour</button>
+                        <button class="preview-btn" data-target="alarmSound">Preview</button>
                     </div>
                 </div>
             </div>
-    
-            <!-- Customize View -->
-            <div id="customizeView" class="ui-content" style="display: none;">
-                <div class="view-header">
-                    <button id="backToMainFromCustomize" class="back-button">Back</button>
+            <!-- Stopwatch Panel -->
+            <div id="stopwatchPanel" class="ui-panel" style="display: none;">
+                <div class="control-buttons">
+                    <button id="toggleStopwatchBtn">Start</button>
+                    <button id="lapStopwatch">Lap</button>
+                    <button id="resetStopwatch">Reset</button>
                 </div>
-                <div class="settings-section">
-                    <h3>Color Scheme</h3>
-                    <div class="color-preset-buttons">
-                         <button id="presetDefault" class="color-preset-button active">Default</button>
-                         <button id="presetNeon" class="color-preset-button">Neon</button>
-                         <button id="presetPastel" class="color-preset-button">Pastel</button>
-                         <button id="presetColorblind" class="color-preset-button">Colorblind</button>
-                    </div>
-                    <div class="setting-toggle">
-                        <span>Gradient</span>
-                        <label class="switch">
-                            <input type="checkbox" id="gradientToggle" checked>
-                            <span class="slider"></span>
-                        </label>
+                <div class="settings-section w-full max-w-xs">
+                    <h3 class="text-sm uppercase text-gray-400 mt-4">Catch Up Time</h3>
+                    <div class="flex items-center justify-center gap-2">
+                        <input type="number" id="catchUpMinutes" class="time-input-small" placeholder="Min" min="0">
+                        <input type="number" id="catchUpSeconds" class="time-input-small" placeholder="Sec" min="0" max="59">
+                        <button id="addCatchUpTimeBtn" class="control-btn">Add Time</button>
                     </div>
                 </div>
-                <div class="settings-section">
-                    <h3>Separators</h3>
-                    <div class="setting-toggle">
-                        <span>Date Lines (Month, Day)</span>
-                        <label class="switch">
-                            <input type="checkbox" id="dateLinesToggle" checked>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="setting-toggle">
-                        <span>Time Lines (Hours)</span>
-                        <label class="switch">
-                            <input type="checkbox" id="timeLinesToggle" checked>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
+                <ul id="lapTimes" class="w-full max-w-xs space-y-2"></ul>
+            </div>
+        </div>
+        
+        <!-- Settings View -->
+        <div id="settingsView" class="ui-content" style="display: none;">
+            <div class="view-header">
+                <button id="backToMainFromSettings" class="back-button">Back</button>
+            </div>
+            <div class="settings-section">
+                <h3>Label Display</h3>
+                <div class="display-mode-buttons">
+                     <button id="modeStandard" class="display-mode-button active">Standard</button>
+                     <button id="modePercentage" class="display-mode-button">Percentage</button>
+                     <button id="modeRemainder" class="display-mode-button">Remainder</button>
                 </div>
-                <div class="settings-section">
-                    <h3>Audio</h3>
-                    <div class="setting-toggle">
-                        <span>Volume</span>
-                        <select id="volumeControl" class="sound-select">
-                            <option value="0.5">Quiet</option>
-                            <option value="1.0" selected>Loud</option>
-                        </select>
-                    </div>
+            </div>
+            <div class="settings-section">
+                <h3>Time Format</h3>
+                <div class="format-buttons">
+                     <button id="format12" class="format-button active">12 Hour</button>
+                     <button id="format24" class="format-button">24 Hour</button>
                 </div>
             </div>
         </div>
-    
-        <!-- Pomodoro Info Modal -->
-        <div id="pomodoroInfoModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 hidden z-50">
-            <div class="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md text-white">
-                <h3 class="text-xl font-bold mb-4">The Pomodoro Technique</h3>
-                <p class="mb-2">This is a time management method that uses a timer to break work into intervals, traditionally 25 minutes in length, separated by short breaks.</p>
-                <p class="mb-4">Each interval is known as a pomodoro, from the Italian word for 'tomato'.</p>
-                <ul class="list-disc list-inside mb-4 space-y-1">
-                    <li>Work for one full session (e.g., 25 mins).</li>
-                    <li>Take a short break (e.g., 5 mins).</li>
-                    <li>After four sessions, take a longer break (e.g., 15 mins).</li>
-                </ul>
-                <button id="closePomodoroInfoBtn" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg w-full">Got it</button>
+
+        <!-- Customize View -->
+        <div id="customizeView" class="ui-content" style="display: none;">
+            <div class="view-header">
+                <button id="backToMainFromCustomize" class="back-button">Back</button>
+            </div>
+            <div class="settings-section">
+                <h3>Color Scheme</h3>
+                <div class="color-preset-buttons">
+                     <button id="presetDefault" class="color-preset-button active">Default</button>
+                     <button id="presetNeon" class="color-preset-button">Neon</button>
+                     <button id="presetPastel" class="color-preset-button">Pastel</button>
+                     <button id="presetColorblind" class="color-preset-button">Colorblind</button>
+                </div>
+                <div class="setting-toggle">
+                    <span>Gradient</span>
+                    <label class="switch">
+                        <input type="checkbox" id="gradientToggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="settings-section">
+                <h3>Separators</h3>
+                <div class="setting-toggle">
+                    <span>Date Lines (Month, Day)</span>
+                    <label class="switch">
+                        <input type="checkbox" id="dateLinesToggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="setting-toggle">
+                    <span>Time Lines (Hours)</span>
+                    <label class="switch">
+                        <input type="checkbox" id="timeLinesToggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="settings-section">
+                <h3>Audio</h3>
+                <div class="setting-toggle">
+                    <span>Volume</span>
+                    <select id="volumeControl" class="sound-select">
+                        <option value="0.5">Quiet</option>
+                        <option value="1.0" selected>Loud</option>
+                    </select>
+                </div>
             </div>
         </div>
-    
-        <script src="ui.js" defer></script>
-        <script src="clock.js" defer></script>
-        <script src="tools.js" defer></script>
-        <script src="pomodoro.js" defer></script>
-        <script src="main.js" defer></script>
-    </body>
-    </html>
-    
+    </div>
+
+    <!-- Pomodoro Info Modal -->
+    <div id="pomodoroInfoModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md text-white">
+            <h3 class="text-xl font-bold mb-4">The Pomodoro Technique</h3>
+            <p class="mb-2">This is a time management method that uses a timer to break work into intervals, traditionally 25 minutes in length, separated by short breaks.</p>
+            <p class="mb-4">Each interval is known as a pomodoro, from the Italian word for 'tomato'.</p>
+            <ul class="list-disc list-inside mb-4 space-y-1">
+                <li>Work for one full session (e.g., 25 mins).</li>
+                <li>Take a short break (e.g., 5 mins).</li>
+                <li>After four sessions, take a longer break (e.g., 15 mins).</li>
+            </ul>
+            <button id="closePomodoroInfoBtn" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg w-full">Got it</button>
+        </div>
+    </div>
+
+    <script src="ui.js" defer></script>
+    <script src="clock.js" defer></script>
+    <script src="tools.js" defer></script>
+    <script src="pomodoro.js" defer></script>
+    <script src="main.js" defer></script>
+</body>
+</html>
