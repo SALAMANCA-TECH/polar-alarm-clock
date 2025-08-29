@@ -204,22 +204,24 @@
         
         <!-- Settings View -->
         <div id="settingsView" class="ui-content" style="display: none;">
+.
             <div class="view-header">
                 <button id="backToMainFromSettings" class="back-button">Back</button>
-            </div>
-            <div class="settings-section">
-                <h3>Label Display</h3>
-                <div class="display-mode-buttons">
-                     <button id="modeStandard" class="display-mode-button active">Standard</button>
-                     <button id="modePercentage" class="display-mode-button">Percentage</button>
-                     <button id="modeRemainder" class="display-mode-button">Remainder</button>
-                </div>
+                <h2 class="view-title">Settings</h2>
             </div>
             <div class="settings-section">
                 <h3>Time Format</h3>
                 <div class="format-buttons">
-                     <button id="format12" class="format-button active">12 Hour</button>
-                     <button id="format24" class="format-button">24 Hour</button>
+                    <button id="format12" class="format-button">12 Hour</button>
+                    <button id="format24" class="format-button">24 Hour</button>
+                </div>
+            </div>
+            <div class="settings-section">
+                <h3>Label Display</h3>
+                <div class="display-mode-buttons">
+                    <button id="modeStandard" class="display-mode-button">Standard</button>
+                    <button id="modePercentage" class="display-mode-button">Percentage</button>
+                    <button id="modeRemainder" class="display-mode-button">Remainder</button>
                 </div>
             </div>
         </div>
@@ -228,19 +230,20 @@
         <div id="customizeView" class="ui-content" style="display: none;">
             <div class="view-header">
                 <button id="backToMainFromCustomize" class="back-button">Back</button>
+                <h2 class="view-title">Customize</h2>
             </div>
             <div class="settings-section">
                 <h3>Color Scheme</h3>
                 <div class="color-preset-buttons">
-                     <button id="presetDefault" class="color-preset-button active">Default</button>
-                     <button id="presetNeon" class="color-preset-button">Neon</button>
-                     <button id="presetPastel" class="color-preset-button">Pastel</button>
-                     <button id="presetColorblind" class="color-preset-button">Colorblind</button>
+                    <button id="presetDefault" class="color-preset-button">Default</button>
+                    <button id="presetNeon" class="color-preset-button">Neon</button>
+                    <button id="presetPastel" class="color-preset-button">Pastel</button>
+                    <button id="presetColorblind" class="color-preset-button">Colorblind</button>
                 </div>
                 <div class="setting-toggle">
                     <span>Gradient</span>
                     <label class="switch">
-                        <input type="checkbox" id="gradientToggle" checked>
+                        <input type="checkbox" id="gradientToggle">
                         <span class="slider"></span>
                     </label>
                 </div>
@@ -250,14 +253,14 @@
                 <div class="setting-toggle">
                     <span>Date Lines (Month, Day)</span>
                     <label class="switch">
-                        <input type="checkbox" id="dateLinesToggle" checked>
+                        <input type="checkbox" id="dateLinesToggle">
                         <span class="slider"></span>
                     </label>
                 </div>
                 <div class="setting-toggle">
                     <span>Time Lines (Hours)</span>
                     <label class="switch">
-                        <input type="checkbox" id="timeLinesToggle" checked>
+                        <input type="checkbox" id="timeLinesToggle">
                         <span class="slider"></span>
                     </label>
                 </div>
@@ -266,10 +269,7 @@
                 <h3>Audio</h3>
                 <div class="setting-toggle">
                     <span>Volume</span>
-                    <select id="volumeControl" class="sound-select">
-                        <option value="0.5">Quiet</option>
-                        <option value="1.0" selected>Loud</option>
-                    </select>
+                    <input type="range" id="volumeControl" min="0" max="1" step="0.1" class="w-full">
                 </div>
             </div>
         </div>
