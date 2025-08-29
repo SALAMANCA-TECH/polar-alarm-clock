@@ -126,6 +126,37 @@ document.addEventListener('DOMContentLoaded', function() {
         applySettingsToUI();
     }
     function applySettingsToUI() {
+        const format12Btn = document.getElementById('format12');
+        const format24Btn = document.getElementById('format24');
+        const modeStandardBtn = document.getElementById('modeStandard');
+        const modePercentageBtn = document.getElementById('modePercentage');
+        const modeRemainderBtn = document.getElementById('modeRemainder');
+        const presetDefaultBtn = document.getElementById('presetDefault');
+        const presetNeonBtn = document.getElementById('presetNeon');
+        const presetPastelBtn = document.getElementById('presetPastel');
+        const presetColorblindBtn = document.getElementById('presetColorblind');
+        const gradientToggle = document.getElementById('gradientToggle');
+        const dateLinesToggle = document.getElementById('dateLinesToggle');
+        const timeLinesToggle = document.getElementById('timeLinesToggle');
+        const volumeControl = document.getElementById('volumeControl');
+
+        if(settings.is24HourFormat) {
+            window.handleActiveButton(format24Btn, [format12Btn, format24Btn]);
+        } else {
+            window.handleActiveButton(format12Btn, [format12Btn, format24Btn]);
+        }
+
+        const modeMap = { standard: modeStandardBtn, percentage: modePercentageBtn, remainder: modeRemainderBtn };
+        window.handleActiveButton(modeMap[settings.labelDisplayMode], [modeStandardBtn, modePercentageBtn, modeRemainderBtn]);
+
+        const colorMap = { default: presetDefaultBtn, neon: presetNeonBtn, pastel: presetPastelBtn, colorblind: presetColorblindBtn };
+        window.handleActiveButton(colorMap[settings.colorPreset], [presetDefaultBtn, presetNeonBtn, presetPastelBtn, presetColorblindBtn]);
+
+        gradientToggle.checked = settings.useGradient;
+        dateLinesToggle.checked = settings.showDateLines;
+        timeLinesToggle.checked = settings.showTimeLines;
+        volumeControl.value = settings.volume;
+
         document.getElementById('pomodoroGlowToggle').checked = settings.pomodoroGlowEnabled;
         document.getElementById('pomodoroPulseToggle').checked = settings.pomodoroPulseEnabled;
     }
@@ -144,6 +175,95 @@ document.addEventListener('DOMContentLoaded', function() {
         audio.play().catch(e => console.error("Error playing sound:", e));
     }
 
+    function setupEventListeners() {
+        const format12Btn = document.getElementById('format12');
+        const format24Btn = document.getElementById('format24');
+        const modeStandardBtn = document.getElementById('modeStandard');
+        const modePercentageBtn = document.getElementById('modePercentage');
+        const modeRemainderBtn = document.getElementById('modeRemainder');
+        const presetDefaultBtn = document.getElementById('presetDefault');
+        const presetNeonBtn = document.getElementById('presetNeon');
+        const presetPastelBtn = document.getElementById('presetPastel');
+        const presetColorblindBtn = document.getElementById('presetColorblind');
+        const gradientToggle = document.getElementById('gradientToggle');
+        const dateLinesToggle = document.getElementById('dateLinesToggle');
+        const timeLinesToggle = document.getElementById('timeLinesToggle');
+        const volumeControl = document.getElementById('volumeControl');
+        const formatButtons = [format12Btn, format24Btn];
+        const modeButtons = [modeStandardBtn, modePercentageBtn, modeRemainderBtn];
+        const colorPresetButtons = [presetDefaultBtn, presetNeonBtn, presetPastelBtn, presetColorblindBtn];
+
+        document.addEventListener('modechange', (e) => {
+            state.mode = e.detail.mode;
+            if (state.mode === 'timer') window.ToolsModule.resetTimer();
+            if (state.mode === 'stopwatch') window.ToolsModule.resetStopwatch();
+            if (state.mode === 'pomodoro') window.PomodoroModule.reset();
+        });
+        document.addEventListener('play-sound', (e) => playSound(e.detail.soundFile, settings.volume));
+        document.addEventListener('statechange', saveState);
+
+        format12Btn.addEventListener('click', () => {
+            settings.is24HourFormat = false;
+            window.handleActiveButton(format12Btn, formatButtons);
+            saveSettings();
+        });
+        format24Btn.addEventListener('click', () => {
+            settings.is24HourFormat = true;
+            window.handleActiveButton(format24Btn, formatButtons);
+            saveSettings();
+        });
+        modeStandardBtn.addEventListener('click', () => {
+            settings.labelDisplayMode = 'standard';
+            window.handleActiveButton(modeStandardBtn, modeButtons);
+            saveSettings();
+        });
+        modePercentageBtn.addEventListener('click', () => {
+            settings.labelDisplayMode = 'percentage';
+            window.handleActiveButton(modePercentageBtn, modeButtons);
+            saveSettings();
+        });
+        modeRemainderBtn.addEventListener('click', () => {
+            settings.labelDisplayMode = 'remainder';
+            window.handleActiveButton(modeRemainderBtn, modeButtons);
+            saveSettings();
+        });
+
+        colorPresetButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const preset = button.id.replace('preset', '').toLowerCase();
+                settings.colorPreset = preset;
+                settings.currentColors = colorPalettes[preset];
+                window.handleActiveButton(button, colorPresetButtons);
+                saveSettings();
+            });
+        });
+        gradientToggle.addEventListener('change', (e) => {
+            settings.useGradient = e.target.checked;
+            saveSettings();
+        });
+        dateLinesToggle.addEventListener('change', (e) => {
+            settings.showDateLines = e.target.checked;
+            saveSettings();
+        });
+        timeLinesToggle.addEventListener('change', (e) => {
+            settings.showTimeLines = e.target.checked;
+            saveSettings();
+        });
+        volumeControl.addEventListener('input', (e) => {
+            settings.volume = parseFloat(e.target.value);
+            saveSettings();
+        });
+
+        document.getElementById('pomodoroGlowToggle').addEventListener('change', (e) => {
+            settings.pomodoroGlowEnabled = e.target.checked;
+            saveSettings();
+        });
+        document.getElementById('pomodoroPulseToggle').addEventListener('change', (e) => {
+            settings.pomodoroPulseEnabled = e.target.checked;
+            saveSettings();
+        });
+    }
+
     // --- INITIALIZATION ---
     function initializeApp() {
         loadState();
@@ -154,29 +274,9 @@ document.addEventListener('DOMContentLoaded', function() {
         window.ToolsModule.init(state);
         window.PomodoroModule.init(state, settings);
 
+        setupEventListeners();
+
         requestAnimationFrame(update);
-
-        document.addEventListener('modechange', (e) => {
-            state.mode = e.detail.mode;
-            if (state.mode === 'timer') window.ToolsModule.resetTimer();
-            if (state.mode === 'stopwatch') window.ToolsModule.resetStopwatch();
-            if (state.mode === 'pomodoro') window.PomodoroModule.reset();
-        });
-        
-        document.addEventListener('play-sound', (e) => {
-            playSound(e.detail.soundFile, settings.volume);
-        });
-
-        document.addEventListener('statechange', saveState);
-
-        document.getElementById('pomodoroGlowToggle').addEventListener('change', (e) => {
-            settings.pomodoroGlowEnabled = e.target.checked;
-            saveSettings();
-        });
-        document.getElementById('pomodoroPulseToggle').addEventListener('change', (e) => {
-            settings.pomodoroPulseEnabled = e.target.checked;
-            saveSettings();
-        });
 
         // Hide the loading overlay now that everything is initialized
         if (loadingOverlay) {
