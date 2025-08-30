@@ -128,6 +128,9 @@ document.addEventListener('DOMContentLoaded', function() {
     function applySettingsToUI() {
         document.getElementById('pomodoroGlowToggle').checked = settings.pomodoroGlowEnabled;
         document.getElementById('pomodoroPulseToggle').checked = settings.pomodoroPulseEnabled;
+        document.getElementById('dateLinesToggle').checked = settings.showDateLines;
+        document.getElementById('timeLinesToggle').checked = settings.showTimeLines;
+        document.getElementById('gradientToggle').checked = settings.useGradient;
     }
     
     function loadAdvancedAlarms() {
@@ -175,6 +178,23 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         document.getElementById('pomodoroPulseToggle').addEventListener('change', (e) => {
             settings.pomodoroPulseEnabled = e.target.checked;
+            saveSettings();
+        });
+
+        document.getElementById('dateLinesToggle').addEventListener('change', (e) => {
+            settings.showDateLines = e.target.checked;
+            saveSettings();
+            window.ClockModule.resize();
+        });
+
+        document.getElementById('timeLinesToggle').addEventListener('change', (e) => {
+            settings.showTimeLines = e.target.checked;
+            saveSettings();
+            window.ClockModule.resize();
+        });
+
+        document.getElementById('gradientToggle').addEventListener('change', (e) => {
+            settings.useGradient = e.target.checked;
             saveSettings();
         });
 

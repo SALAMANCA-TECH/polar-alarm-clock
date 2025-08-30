@@ -31,6 +31,16 @@
         const closePomodoroInfoBtn = document.getElementById('closePomodoroInfoBtn');
     
         function showView(viewToShow) {
+            const isMainView = viewToShow === views.main;
+
+            if (window.ClockModule) {
+                if (isMainView) {
+                    ClockModule.resume();
+                } else {
+                    ClockModule.pause();
+                }
+            }
+
             Object.values(views).forEach(v => v.style.display = 'none');
             viewToShow.style.display = 'flex';
         }
