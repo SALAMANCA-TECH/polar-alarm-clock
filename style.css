@@ -329,4 +329,41 @@
         animation: glow-break 3s infinite ease-in-out;
         border-radius: 50%; /* Ensures shadow is circular */
     }
+
+    /* --- RESPONSIVE DESIGN --- */
+    @media (max-width: 768px) {
+        body {
+            flex-direction: column;
+            justify-content: flex-start; /* Align content to the top */
+            height: auto; /* Allow body to grow as needed */
+            overflow-y: auto; /* Allow scrolling */
+        }
+
+        .canvas-container {
+            width: 90vw; /* Make canvas responsive to viewport width */
+            height: 90vw; /* Maintain aspect ratio */
+            max-width: 100%; /* Override desktop max-width */
+            margin-top: 5vh; /* Add some space at the top */
+            margin-bottom: 5vh; /* Add space between clock and UI */
+        }
+
+        .ui-container {
+            min-width: 100%;
+            height: auto;
+            flex-grow: 0; /* Prevent it from growing */
+            padding: 1rem;
+            justify-content: flex-start;
+        }
+
+        .main-nav-buttons {
+            flex-direction: row; /* Buttons side-by-side */
+            flex-wrap: wrap; /* Allow wrapping on very small screens */
+            gap: 5px;
+        }
+
+        .main-nav-button {
+            flex-grow: 1; /* Allow buttons to grow and fill space */
+            font-size: 1rem; /* Slightly smaller font for mobile */
+        }
+    }
     
