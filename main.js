@@ -166,11 +166,55 @@ document.addEventListener('DOMContentLoaded', function() {
         if (storedAlarms) state.advancedAlarms = JSON.parse(storedAlarms);
     }
     function checkAdvancedAlarms(now) {
-        // Placeholder for full alarm checking logic
+        const currentMinute = now.getMinutes();
+        if (currentMinute === state.lastMinuteChecked) {
+            return; // Already checked this minute
+        }
+        state.lastMinuteChecked = currentMinute;
+
+        const currentDay = now.getDay(); // 0 (Sun) to 6 (Sat)
+        const currentHour = now.getHours(); // 0 to 23
+
+        state.advancedAlarms.forEach(alarm => {
+            if (!alarm.enabled) {
+                return;
+            }
+
+            const alarmHour24 = convertTo24Hour(alarm.hour, alarm.ampm);
+
+            if (alarmHour24 === currentHour && parseInt(alarm.minute) === currentMinute) {
+                if (alarm.days && alarm.days.length > 0) {
+                    if (alarm.days.includes(currentDay)) {
+                        playSound(alarm.sound, settings.volume);
+                        if (alarm.isTemporary) {
+                            alarm.enabled = false;
+                            // Save the updated alarms array back to localStorage
+                            localStorage.setItem('polarAlarms', JSON.stringify(state.advancedAlarms));
+                        }
+                    }
+                } else if (alarm.isTemporary) {
+                    // One-time temporary alarm
+                    playSound(alarm.sound, settings.volume);
+                    alarm.enabled = false;
+                    localStorage.setItem('polarAlarms', JSON.stringify(state.advancedAlarms));
+                }
+            }
+        });
+    }
+
+    function convertTo24Hour(hour, ampm) {
+        hour = parseInt(hour);
+        if (ampm === 'PM' && hour !== 12) {
+            hour += 12;
+        }
+        if (ampm === 'AM' && hour === 12) {
+            hour = 0; // Midnight case
+        }
+        return hour;
     }
     function playSound(soundFile, volume) {
         if (!soundFile) return;
-        const audio = new Audio(`assets/sounds/${soundFile}`);
+        const audio = new Audio(`assets/Sounds/${soundFile}`);
         audio.volume = volume;
         audio.play().catch(e => console.error("Error playing sound:", e));
     }

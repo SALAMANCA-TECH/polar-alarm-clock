@@ -433,7 +433,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function playSound(soundFile, volume = 1.0) {
         if (!soundFile) return;
         // This relative path is correct when using a local server.
-        const audio = new Audio(`assets/sounds/${soundFile}`);
+        const audio = new Audio(`assets/Sounds/${soundFile}`);
         audio.volume = volume;
         audio.play().catch(e => console.error("Error playing sound:", e));
         setTimeout(() => {
@@ -908,6 +908,13 @@ document.addEventListener('DOMContentLoaded', () => {
             saveStateToStorage();
             renderAlarms();
         });
+
+        const testAudioBtn = document.getElementById('testAudioBtn');
+        if (testAudioBtn) {
+            testAudioBtn.addEventListener('click', () => {
+                playSound('bell01.mp3', 1.0);
+            });
+        }
     }
     function setupAlarmListEventListeners() {
         elements.alarmList.addEventListener('click', (e) => {
