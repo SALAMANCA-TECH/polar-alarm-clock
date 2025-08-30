@@ -113,13 +113,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const minutesEndAngle = baseStartAngle + ((minutes + seconds / 60) / 60) * Math.PI * 2;
         const secondsEndAngle = baseStartAngle + ((seconds + now.getMilliseconds() / 1000) / 60) * Math.PI * 2;
         
-        const arcs = [
-            { key: 'month', radius: dimensions.monthRadius, colors: settings.currentColors.month, lineWidth: 20, endAngle: monthEndAngle },
-            { key: 'day', radius: dimensions.dayRadius, colors: settings.currentColors.day, lineWidth: 30, endAngle: dayEndAngle },
-            { key: 'hours', radius: dimensions.hoursRadius, colors: settings.currentColors.hours, lineWidth: 45, endAngle: hoursEndAngle },
-            { key: 'minutes', radius: dimensions.minutesRadius, colors: settings.currentColors.minutes, lineWidth: 30, endAngle: minutesEndAngle },
-            { key: 'seconds', radius: dimensions.secondsRadius, colors: settings.currentColors.seconds, lineWidth: 30, endAngle: secondsEndAngle }
-        ];
+        const arcs = [];
+
+        if (settings.showDateLines) {
+            arcs.push({ key: 'month', radius: dimensions.monthRadius, colors: settings.currentColors.month, lineWidth: 20, endAngle: monthEndAngle });
+            arcs.push({ key: 'day', radius: dimensions.dayRadius, colors: settings.currentColors.day, lineWidth: 30, endAngle: dayEndAngle });
+        }
+
+        if (settings.showTimeLines) {
+            arcs.push({ key: 'hours', radius: dimensions.hoursRadius, colors: settings.currentColors.hours, lineWidth: 45, endAngle: hoursEndAngle });
+        }
+
+        arcs.push({ key: 'minutes', radius: dimensions.minutesRadius, colors: settings.currentColors.minutes, lineWidth: 30, endAngle: minutesEndAngle });
+        arcs.push({ key: 'seconds', radius: dimensions.secondsRadius, colors: settings.currentColors.seconds, lineWidth: 30, endAngle: secondsEndAngle });
 
         drawTrackedAlarmTimer(now);
         if (state.timer.totalSeconds > 0 && dimensions.timerRadius > 0) {
@@ -170,6 +176,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // ... drawing logic for tracked alarm ...
     }
 
+    let animationFrameId = null;
     const animate = () => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         if (state.mode === 'stopwatch') {
@@ -177,20 +184,26 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             drawClock();
         }
-        requestAnimationFrame(animate);
+        animationFrameId = requestAnimationFrame(animate);
     };
 
     const ClockModule = {
-        // MODIFICATION: Accept initialSettings
         init(initialSettings) {
-            settings = initialSettings; // Set settings immediately
+            settings = initialSettings;
             this.resize();
             window.addEventListener('resize', () => this.resize());
-            if (canvas.width > 0 && canvas.height > 0) {
+            this.resume();
+        },
+        pause() {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+        },
+        resume() {
+            if (!animationFrameId) {
+                lastNow = new Date(); // Reset time to avoid a jump
                 animate();
-            } else {
-                // If canvas isn't ready, wait a frame and try again
-                requestAnimationFrame(() => this.init(settings));
             }
         },
         resize() {
@@ -198,20 +211,64 @@ document.addEventListener('DOMContentLoaded', function() {
             canvas.height = canvas.offsetHeight;
             dimensions.centerX = canvas.width / 2;
             dimensions.centerY = canvas.height / 2;
-            dimensions.clockRadius = Math.min(dimensions.centerX, dimensions.centerY) * 0.9;
 
+            const baseRadius = Math.min(dimensions.centerX, dimensions.centerY) * 0.9;
             const monthLineWidth = 20;
-            const otherLineWidth = 30;
+            const dayLineWidth = 30;
             const hourLineWidth = 45;
-            const gap = 20;
+            const minuteLineWidth = 30;
+            const secondLineWidth = 30;
+            const timerLineWidth = 30;
+            const alarmLineWidth = 20;
+            const gap = 15;
 
-            dimensions.secondsRadius = dimensions.clockRadius - (otherLineWidth / 2);
-            dimensions.minutesRadius = dimensions.secondsRadius - otherLineWidth - gap;
-            dimensions.hoursRadius = dimensions.minutesRadius - otherLineWidth - gap;
-            dimensions.dayRadius = dimensions.hoursRadius - hourLineWidth - gap;
-            dimensions.monthRadius = dimensions.dayRadius - otherLineWidth - gap;
-            dimensions.timerRadius = dimensions.monthRadius - monthLineWidth - gap;
-            dimensions.trackedAlarmRadius = dimensions.timerRadius - otherLineWidth - gap;
+            let totalWidth = secondLineWidth / 2;
+            totalWidth += minuteLineWidth + gap;
+            if (settings.showTimeLines) {
+                totalWidth += hourLineWidth + gap;
+            }
+            if (settings.showDateLines) {
+                totalWidth += dayLineWidth + gap;
+                totalWidth += monthLineWidth + gap;
+            }
+            if (state.timer.totalSeconds > 0) totalWidth += timerLineWidth + gap;
+            if (state.trackedAlarm.nextAlarmTime) totalWidth += alarmLineWidth + gap;
+
+            const scale = baseRadius / totalWidth;
+
+            let currentRadius = baseRadius;
+
+            dimensions.secondsRadius = currentRadius - (secondLineWidth / 2) * scale;
+            currentRadius -= (secondLineWidth + gap) * scale;
+
+            dimensions.minutesRadius = currentRadius - (minuteLineWidth / 2) * scale;
+            currentRadius -= (minuteLineWidth + gap) * scale;
+
+            dimensions.hoursRadius = currentRadius - (hourLineWidth / 2) * scale;
+            currentRadius -= (hourLineWidth + gap) * scale;
+
+            if (settings.showDateLines) {
+                dimensions.dayRadius = currentRadius - (dayLineWidth / 2) * scale;
+                currentRadius -= (dayLineWidth + gap) * scale;
+                dimensions.monthRadius = currentRadius - (monthLineWidth / 2) * scale;
+                currentRadius -= (monthLineWidth + gap) * scale;
+            } else {
+                dimensions.dayRadius = 0;
+                dimensions.monthRadius = 0;
+            }
+
+            if (state.timer.totalSeconds > 0) {
+                dimensions.timerRadius = currentRadius - (timerLineWidth / 2) * scale;
+                currentRadius -= (timerLineWidth + gap) * scale;
+            } else {
+                dimensions.timerRadius = 0;
+            }
+
+            if (state.trackedAlarm.nextAlarmTime) {
+                dimensions.trackedAlarmRadius = currentRadius - (alarmLineWidth / 2) * scale;
+            } else {
+                dimensions.trackedAlarmRadius = 0;
+            }
         },
         update(newSettings, newState) {
             settings = newSettings;

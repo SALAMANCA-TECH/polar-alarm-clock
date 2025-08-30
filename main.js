@@ -159,6 +159,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         document.getElementById('pomodoroGlowToggle').checked = settings.pomodoroGlowEnabled;
         document.getElementById('pomodoroPulseToggle').checked = settings.pomodoroPulseEnabled;
+        document.getElementById('dateLinesToggle').checked = settings.showDateLines;
+        document.getElementById('timeLinesToggle').checked = settings.showTimeLines;
+        document.getElementById('gradientToggle').checked = settings.useGradient;
     }
     
     function loadAdvancedAlarms() {
@@ -321,6 +324,23 @@ document.addEventListener('DOMContentLoaded', function() {
         setupEventListeners();
 
         requestAnimationFrame(update);
+
+        document.getElementById('dateLinesToggle').addEventListener('change', (e) => {
+            settings.showDateLines = e.target.checked;
+            saveSettings();
+            window.ClockModule.resize();
+        });
+
+        document.getElementById('timeLinesToggle').addEventListener('change', (e) => {
+            settings.showTimeLines = e.target.checked;
+            saveSettings();
+            window.ClockModule.resize();
+        });
+
+        document.getElementById('gradientToggle').addEventListener('change', (e) => {
+            settings.useGradient = e.target.checked;
+            saveSettings();
+        });
 
         // Hide the loading overlay now that everything is initialized
         if (loadingOverlay) {
